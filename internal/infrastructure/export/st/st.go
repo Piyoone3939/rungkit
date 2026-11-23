@@ -12,15 +12,16 @@ import (
 	"strconv"
 	"strings"
 
-	"rungkit/internal/domain/check"
-	"rungkit/internal/domain/ladder"
-	"rungkit/internal/domain/profile"
+	"github.com/Piyoone3939/rungkit/internal/domain/check"
+	"github.com/Piyoone3939/rungkit/internal/domain/i18n"
+	"github.com/Piyoone3939/rungkit/internal/domain/ladder"
+	"github.com/Piyoone3939/rungkit/internal/domain/profile"
 )
 
 // Export converts p into a PROGRAM named name.
 func Export(p *ladder.Program, name string) (string, error) {
 	if ds := check.Program(p); check.HasErrors(ds) {
-		return "", fmt.Errorf("エラーがあるので書き出せません（rungkit check で確認できます）")
+		return "", i18n.Errorf("エラーがあるので書き出せません（rungkit check で確認できます）")
 	}
 	prof, _ := profile.Get(p.Profile)
 	g := &gen{p: p, prof: prof, vars: map[string]string{}, melsec: strings.HasPrefix(p.Profile, "melsec")}
@@ -257,7 +258,7 @@ func (g *gen) output(e ladder.Element, cond string) error {
 			case profile.TimerInst:
 				ifThen(cond, t+"(IN := FALSE);")
 			case profile.CounterInst:
-				return fmt.Errorf("カウンタの RST はまだ ST に書き出せません")
+				return i18n.Errorf("カウンタの RST はまだ ST に書き出せません")
 			case profile.Word:
 				ifThen(cond, t+" := 0;")
 			default:
@@ -298,7 +299,7 @@ func (g *gen) output(e ladder.Element, cond string) error {
 	case *ladder.Instr:
 		spec, ok := g.prof.Instr(v.Name)
 		if !ok {
-			return fmt.Errorf("命令 %s は使えません", v.Name)
+			return i18n.Errorf("命令 %s は使えません", v.Name)
 		}
 		args := make([]string, len(v.Args))
 		for i, a := range v.Args {
@@ -320,7 +321,7 @@ func (g *gen) output(e ladder.Element, cond string) error {
 		case "DEC":
 			stmt = fmt.Sprintf("%s := %s - 1;", args[0], args[0])
 		default:
-			return fmt.Errorf("命令 %s はまだ ST に書き出せません", v.Name)
+			return i18n.Errorf("命令 %s はまだ ST に書き出せません", v.Name)
 		}
 		if spec.Pulse {
 			fb := "_p_" + v.ID
@@ -331,7 +332,7 @@ func (g *gen) output(e ladder.Element, cond string) error {
 			ifThen(cond, stmt)
 		}
 	default:
-		return fmt.Errorf("出力ではない要素 %T", e)
+		return i18n.Errorf("出力ではない要素 %T", e)
 	}
 	return nil
 }

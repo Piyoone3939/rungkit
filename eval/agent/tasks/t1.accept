@@ -1,0 +1,27 @@
+test "X3で止まる" {
+  set X0 on
+  run 1
+  set X0 off
+  run 1
+  expect Y0 on
+  set X3 on
+  run 1
+  expect Y0 off
+  set X3 off
+  run 1
+  expect Y0 off
+}
+test "X1でも止まる" {
+  set X0 on
+  run 1
+  set X0 off
+  set X1 on
+  run 1
+  expect Y0 off
+}
+test "X3を押している間は起動しない" {
+  set X3 on
+  set X0 on
+  run 2
+  expect Y0 off
+}

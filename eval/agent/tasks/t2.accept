@@ -1,0 +1,10 @@
+test "3秒で数える" {
+  set X0 on
+  run 1
+  set X0 off
+  set X2 on
+  run 1
+  run 2900ms
+  expect D0 0
+  wait D0 1 within 200ms
+}

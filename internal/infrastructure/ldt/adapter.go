@@ -1,6 +1,6 @@
 package ldt
 
-import "rungkit/internal/domain/ladder"
+import "github.com/Piyoone3939/rungkit/internal/domain/ladder"
 
 // Notation adapts the .ldt text format to the application layer, which only
 // knows the interface it declares (editing.Notation, workspace.Notation).

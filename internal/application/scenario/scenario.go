@@ -7,8 +7,9 @@ package scenario
 import (
 	"fmt"
 
-	"rungkit/internal/domain/ladder"
-	"rungkit/internal/domain/sim"
+	"github.com/Piyoone3939/rungkit/internal/domain/i18n"
+	"github.com/Piyoone3939/rungkit/internal/domain/ladder"
+	"github.com/Piyoone3939/rungkit/internal/domain/sim"
 )
 
 // Script is a set of tests sharing a scan time and watched operands.
@@ -52,14 +53,19 @@ type Step struct {
 
 // Result is the outcome of one test.
 type Result struct {
-	Name   string       `json:"name"`
-	Pass   bool         `json:"pass"`
-	Line   int          `json:"line,omitempty"` // the failing step
-	Msg    string       `json:"message,omitempty"`
-	Scans  int          `json:"scans"`
-	TimeMs int64        `json:"time_ms"`
-	Watch  []string     `json:"watch,omitempty"`
-	Trace  []sim.Record `json:"trace,omitempty"`
+	Name   string   `json:"name"`
+	Pass   bool     `json:"pass"`
+	Line   int      `json:"line,omitempty"` // the failing step
+	Msg    string   `json:"message,omitempty"`
+	Scans  int      `json:"scans"`
+	TimeMs int64    `json:"time_ms"`
+	Watch  []string `json:"watch,omitempty"`
+	// Trace holds the first scan, every scan where a watched value changed,
+	// and the last scan.
+	Trace []sim.Record `json:"trace,omitempty"`
+	// TraceOmitted counts records dropped from the middle to keep the
+	// result small (see Limit).
+	TraceOmitted int `json:"trace_omitted,omitempty"`
 }
 
 // DefaultScanMs is used when a script does not set a scan time.
@@ -91,7 +97,7 @@ func Run(p *ladder.Program, sc *Script) ([]Result, error) {
 			}
 		}
 		res.Scans, res.TimeMs = s.Scans(), s.Now()
-		res.Watch, res.Trace = s.Watched(), s.Trace()
+		res.Watch, res.Trace = s.Watched(), Changes(s.Trace())
 		results = append(results, res)
 	}
 	return results, nil
@@ -99,7 +105,7 @@ func Run(p *ladder.Program, sc *Script) ([]Result, error) {
 
 // do runs one step and returns a failure message ("" when it passed).
 func do(s *sim.Sim, st Step) string {
-	at := func() string { return fmt.Sprintf("（スキャン %d, %s）", s.Scans(), sim.FormatDuration(s.Now())) }
+	at := func() string { return i18n.T("（スキャン %d, %s）", s.Scans(), sim.FormatDuration(s.Now())) }
 	scans := func() int {
 		if st.ByTime || st.Kind == CmdWait {
 			return int((st.DurationMs + s.ScanTime() - 1) / s.ScanTime())
@@ -124,7 +130,7 @@ func do(s *sim.Sim, st Step) string {
 			return err.Error()
 		}
 		if got != st.Value {
-			return fmt.Sprintf("expect %s %s でしたが、%s でした%s",
+			return i18n.T("expect %s %s でしたが、%s でした%s",
 				st.Operand, s.Format(st.Operand, st.Value), s.Format(st.Operand, got), at())
 		}
 	case CmdWait:
@@ -138,7 +144,7 @@ func do(s *sim.Sim, st Step) string {
 				return ""
 			}
 			if i == limit {
-				return fmt.Sprintf("%s 待っても %s は %s になりませんでした（%s のまま）%s",
+				return i18n.T("%s 待っても %s は %s になりませんでした（%s のまま）%s",
 					sim.FormatDuration(s.Now()-start), st.Operand, s.Format(st.Operand, st.Value), s.Format(st.Operand, got), at())
 			}
 			if err := s.Scan(); err != nil {
@@ -146,10 +152,45 @@ func do(s *sim.Sim, st Step) string {
 			}
 		}
 	default:
-		return fmt.Sprintf("命令 %q はありません", st.Kind)
+		return i18n.T("命令 %q はありません", st.Kind)
 	}
 	if err != nil {
 		return err.Error()
 	}
 	return ""
+}
+
+// Changes keeps the first record, every record whose values differ from the
+// one before, and the last record.
+func Changes(trace []sim.Record) []sim.Record {
+	var out []sim.Record
+	for i, r := range trace {
+		if i == 0 || i == len(trace)-1 || !sameValues(r.Values, trace[i-1].Values) {
+			out = append(out, r)
+		}
+	}
+	return out
+}
+
+func sameValues(a, b []int64) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+	return true
+}
+
+// Limit keeps at most max records of r's trace: the first and last halves,
+// counting the rest in TraceOmitted. max <= 0 keeps everything.
+func (r *Result) Limit(max int) {
+	if max <= 0 || len(r.Trace) <= max {
+		return
+	}
+	head, tail := max/2, max-max/2
+	r.TraceOmitted = len(r.Trace) - max
+	r.Trace = append(r.Trace[:head:head], r.Trace[len(r.Trace)-tail:]...)
 }

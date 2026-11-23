@@ -19,8 +19,9 @@ import (
 	"strconv"
 	"strings"
 
-	"rungkit/internal/application/scenario"
-	"rungkit/internal/domain/profile"
+	"github.com/Piyoone3939/rungkit/internal/application/scenario"
+	"github.com/Piyoone3939/rungkit/internal/domain/i18n"
+	"github.com/Piyoone3939/rungkit/internal/domain/profile"
 )
 
 // Error is a syntax error in a scenario file.
@@ -49,7 +50,7 @@ func Parse(src string) (*scenario.Script, error) {
 	for i, raw := range strings.Split(src, "\n") {
 		line := i + 1
 		errf := func(format string, args ...any) error {
-			return &Error{line, fmt.Sprintf(format, args...)}
+			return &Error{line, i18n.T(format, args...)}
 		}
 		words, err := fields(raw)
 		if err != nil {
@@ -100,19 +101,23 @@ func Parse(src string) (*scenario.Script, error) {
 		cur.Steps = append(cur.Steps, st)
 	}
 	if cur != nil {
-		return nil, &Error{cur.Line, fmt.Sprintf("test %q の } がありません", cur.Name)}
+		return nil, &Error{cur.Line, i18n.T("test %q の } がありません", cur.Name)}
 	}
 	return sc, nil
 }
 
 func step(words []string) (scenario.Step, error) {
 	cmd, args := words[0], words[1:]
+	// "expect D0 == 1" and "set D0 = 5" read like "expect D0 1".
+	if (cmd == "set" || cmd == "force" || cmd == "expect" || cmd == "wait") && len(args) >= 3 && (args[1] == "==" || args[1] == "=") {
+		args = append([]string{args[0]}, args[2:]...)
+	}
 	a, ok := arity[cmd]
 	if !ok {
-		return scenario.Step{}, fmt.Errorf("命令 %q はありません（set / force / unforce / run / expect / wait / watch）", cmd)
+		return scenario.Step{}, i18n.Errorf("命令 %q はありません（set / force / unforce / run / expect / wait / watch）", cmd)
 	}
 	if len(args) < a[0] || len(args) > a[1] {
-		return scenario.Step{}, fmt.Errorf("%s の書き方が違います", cmd)
+		return scenario.Step{}, i18n.Errorf("%s の書き方が違います", cmd)
 	}
 	st := scenario.Step{Kind: scenario.Kind(cmd), Operand: args[0]}
 	var err error
@@ -128,18 +133,18 @@ func step(words []string) (scenario.Step, error) {
 		} else if ms, e := profile.ParseDuration(args[0]); e == nil {
 			st.DurationMs, st.ByTime = ms, true
 		} else {
-			err = fmt.Errorf("%q はスキャン数（3）か時間（5s, 200ms）で書きます", args[0])
+			err = i18n.Errorf("%q はスキャン数（3）か時間（5s, 200ms）で書きます", args[0])
 		}
 	case "wait":
 		if args[2] != "within" {
-			return st, fmt.Errorf("wait T0 on within 6s のように書きます")
+			return st, i18n.Errorf("wait T0 on within 6s のように書きます")
 		}
 		if st.Value, err = ParseValue(args[1]); err != nil {
 			return st, err
 		}
 		st.ByTime = true
 		if st.DurationMs, err = profile.ParseDuration(args[3]); err != nil {
-			err = fmt.Errorf("待つ時間 %q が読めません（例: 6s）", args[3])
+			err = i18n.Errorf("待つ時間 %q が読めません（例: 6s）", args[3])
 		}
 	}
 	return st, err
@@ -166,11 +171,11 @@ func fields(line string) ([]string, error) {
 				j++
 			}
 			if j >= len(line) {
-				return nil, fmt.Errorf("文字列が閉じていません")
+				return nil, i18n.Errorf("文字列が閉じていません")
 			}
 			s, err := strconv.Unquote(line[i : j+1])
 			if err != nil {
-				return nil, fmt.Errorf("文字列の書き方が正しくありません")
+				return nil, i18n.Errorf("文字列の書き方が正しくありません")
 			}
 			out = append(out, s)
 			i = j + 1
@@ -215,5 +220,5 @@ func ParseValue(s string) (int64, error) {
 	if ms, err := profile.ParseDuration(s); err == nil {
 		return ms, nil
 	}
-	return 0, fmt.Errorf("値 %q が読めません（on / off / 数値 / 時間）", s)
+	return 0, i18n.Errorf("値 %q が読めません（on / off / 数値 / 時間）", s)
 }

@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"rungkit/internal/infrastructure/ldt"
+	"github.com/Piyoone3939/rungkit/internal/infrastructure/ldt"
 )
 
 func newSim(t *testing.T, src string) *Sim {

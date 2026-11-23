@@ -2,6 +2,10 @@
 // file extension picks the format: .json uses JSON, .xml PLCopen XML,
 // anything else .ldt text.
 // The path "-" reads from standard input.
+//
+// With Root set (the MCP server does this), every path must stay inside Root:
+// relative paths are resolved there, symbolic links that lead outside are
+// refused, and "-" is refused because stdin carries the MCP protocol.
 package filestore
 
 import (
@@ -12,26 +16,74 @@ import (
 	"strings"
 	"time"
 
-	"rungkit/internal/application/workspace"
-	"rungkit/internal/domain/ladder"
-	"rungkit/internal/infrastructure/jsoncodec"
-	"rungkit/internal/infrastructure/ldt"
-	"rungkit/internal/infrastructure/plcopen"
+	"github.com/Piyoone3939/rungkit/internal/application/workspace"
+	"github.com/Piyoone3939/rungkit/internal/domain/i18n"
+	"github.com/Piyoone3939/rungkit/internal/domain/ladder"
+	"github.com/Piyoone3939/rungkit/internal/infrastructure/jsoncodec"
+	"github.com/Piyoone3939/rungkit/internal/infrastructure/ldt"
+	"github.com/Piyoone3939/rungkit/internal/infrastructure/plcopen"
 )
 
 // Store implements workspace.Files.
 type Store struct {
 	// Stdin is read for the path "-" (os.Stdin when nil).
 	Stdin io.Reader
+	// Root confines all paths to this directory when set.
+	Root string
+}
+
+// MaxFileSize is the largest file read (16 MiB).
+const MaxFileSize = 16 << 20
+
+// resolve applies the Root confinement to path.
+func (s Store) resolve(path string) (string, error) {
+	if s.Root == "" {
+		return path, nil
+	}
+	if path == "-" {
+		return "", i18n.Errorf("標準入力（-）はここでは使えません")
+	}
+	root, err := filepath.Abs(s.Root)
+	if err != nil {
+		return "", err
+	}
+	if r, err := filepath.EvalSymlinks(root); err == nil {
+		root = r
+	}
+	p := path
+	if !filepath.IsAbs(p) {
+		p = filepath.Join(root, p)
+	}
+	p = filepath.Clean(p)
+	// Follow links on the part of the path that exists, so a link inside the
+	// root cannot point outside it.
+	real := p
+	if r, err := filepath.EvalSymlinks(p); err == nil {
+		real = r
+	} else if r, err := filepath.EvalSymlinks(filepath.Dir(p)); err == nil {
+		real = filepath.Join(r, filepath.Base(p))
+	}
+	rel, err := filepath.Rel(root, real)
+	if err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) || filepath.IsAbs(rel) {
+		return "", i18n.Errorf("%s は作業フォルダ（%s）の外にあるので使えません", path, root)
+	}
+	return p, nil
 }
 
 func (s Store) read(path string) ([]byte, error) {
+	path, err := s.resolve(path)
+	if err != nil {
+		return nil, err
+	}
 	if path == "-" {
 		in := s.Stdin
 		if in == nil {
 			in = os.Stdin
 		}
-		return io.ReadAll(in)
+		return io.ReadAll(io.LimitReader(in, MaxFileSize+1))
+	}
+	if st, err := os.Stat(path); err == nil && st.Size() > MaxFileSize {
+		return nil, i18n.Errorf("%s は大きすぎます（%d バイトまで）", path, MaxFileSize)
 	}
 	return os.ReadFile(path)
 }
@@ -82,6 +134,10 @@ func (s Store) SaveProgram(path string, p *ladder.Program) error {
 		if err != nil {
 			return err
 		}
+		// Never write a file rungkit itself could not read back.
+		if _, _, err := ldt.Parse(text); err != nil {
+			return i18n.Errorf("保存すると読み戻せない内容になるので保存しません: %w", err)
+		}
 		out = []byte(text)
 	case ".json":
 		b, err := jsoncodec.Marshal(p)
@@ -97,9 +153,13 @@ func (s Store) SaveProgram(path string, p *ladder.Program) error {
 		}
 		out = []byte(text)
 	default:
-		return fmt.Errorf("保存先は .ldt / .json / .xml（PLCopen）のファイルにします（%s）", path)
+		return i18n.Errorf("保存先は .ldt / .json / .xml（PLCopen）のファイルにします（%s）", path)
 	}
-	return os.WriteFile(path, out, 0o644)
+	target, err := s.resolve(path)
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(target, out, 0o644)
 }
 
 // ReadText reads a text file.

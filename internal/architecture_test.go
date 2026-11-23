@@ -26,7 +26,7 @@ var allowed = map[string][]string{
 	"presentation":   {"domain", "application", "presentation"},
 }
 
-const module = "rungkit/internal/"
+const module = "github.com/Piyoone3939/rungkit/internal/"
 
 func TestOnionDependencies(t *testing.T) {
 	fset := token.NewFileSet()
@@ -54,7 +54,7 @@ func TestOnionDependencies(t *testing.T) {
 				if !contains(ok, target) {
 					t.Errorf("%s (%s) must not import %s (%s)", path, layer, p, target)
 				}
-			case strings.HasPrefix(p, "rungkit/"):
+			case strings.HasPrefix(p, "github.com/Piyoone3939/rungkit/"):
 				t.Errorf("%s imports %s from outside internal/", path, p)
 			case strings.Contains(strings.Split(p, "/")[0], "."): // third-party module
 				if layer == "domain" || layer == "application" {

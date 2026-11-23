@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"rungkit/internal/infrastructure/ldt"
+	"github.com/Piyoone3939/rungkit/internal/infrastructure/ldt"
 )
 
 var fixed = time.Date(2026, 11, 23, 9, 0, 0, 0, time.UTC)

@@ -1,0 +1,9 @@
+profile melsec-iqr
+
+sym X0 "運転ボタン"
+sym X1 "停止ボタン"
+sym Y0 "モータ"
+
+rung "運転" {
+  X0 & !X1 -> OUT(Y0)
+}

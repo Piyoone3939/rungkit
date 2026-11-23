@@ -1,5 +1,7 @@
 # 設計メモ
 
+[English](design.en.md)
+
 ## 目標
 
 SolidCraft（AIが操作できるOSSの3D-CAD）と同じ型を、ラダーで作る。
@@ -27,7 +29,9 @@ cmd/rungkit (組み立て)
   └ presentation: cli, mcpserver
       └ application: workspace, editing, scenario   ← インターフェースはここで宣言
           └ domain: ladder, profile, check, sim      ← 標準ライブラリだけ
-  └ infrastructure: ldt, ldtest, jsoncodec, export/*, filestore  ← application のインターフェースを実装
+  └ infrastructure: ldt, ldtest, jsoncodec, export/*, plcopen, filestore, locale  ← application のインターフェースを実装
+
+共通: domain/i18n（メッセージの翻訳。どの層からも使う）
 ```
 
 - ドメインは標準ライブラリ以外に依存しない。アプリケーションはドメインだけに依存する
@@ -85,8 +89,17 @@ cmd/rungkit (組み立て)
 ## MCPサーバー
 
 - ツールは開く・作る・保存・表示・確認・編集・元に戻す・やり直す・書き出し・シナリオ実行の10個。編集は `edit_program` 1つに操作のリストを渡す形にし、ツール一覧を小さく保つ
-- 保存するまでファイルは変わらない。保存先は `.ldt` か `.json` だけ（打ち間違いで別のファイルを上書きしないため）
+- 保存するまでファイルは変わらない。保存先は `.ldt` / `.json` / `.xml` だけ（打ち間違いで別のファイルを上書きしないため）
 - 文法と作業の流れは、接続時の instructions で伝える
+- 読み書きできるのは作業フォルダ（`-root`、既定は起動したフォルダ）の中だけ。相対パスはその中で解決し、外を指すシンボリックリンクも断る。標準入力（`-`）は MCP の通信路なので断る。16MB を超えるファイルは読まない
+
+## 2か国語対応
+
+- メッセージは日本語の文をそのまま ID にし、英語の辞書（`domain/i18n/catalog_en.go`）を引く（gettext 方式）。既存のコードを大きく変えずに済む
+- `internal/i18n_test.go` が、コード中の日本語の文字列すべてに英訳があること、書式（`%s` など）が日英で一致することを確かめる。英語で引数の順番を変えるときは `%[2]d` のように番号を付ける
+- 言語は起動時に1回決める: `-lang` → `RUNGKIT_LANG` → `LC_ALL` / `LC_MESSAGES` / `LANG` → OS の設定（Windows のユーザーロケール）→ 英語
+- パッケージの初期化時に作る値（エラーなど）は、表示するときに翻訳する（言語が決まる前に作られるため）
+- 検証エラーの `code`（`E_READ_ONLY` など）は言語によらず同じ。AI や他のツールはコードで判断できる
 
 ## PLCopen XML
 
@@ -100,8 +113,11 @@ cmd/rungkit (組み立て)
 
 ## 次にやること
 
-1. GX Works3 の取り込み形式の確認と対応
-2. ブラウザの画面（ラダー表示と編集）
-3. 安全条件の形式検証（ESBMC-PLC などとの連携）
-4. ラダー図の画像・ASCII表示（`render`）
-5. Beremiz / OpenPLC Editor の実物でPLCopen XMLを読み書きして確かめる
+決めたことは [decisions.md](decisions.md) にある。
+
+1. GX Works3 の取り込み形式の確認と対応（手順: [verify-melsec.md](verify-melsec.md)）
+2. 三菱 FX5 プロファイル（X/Y が8進数）
+3. ブラウザの画面（ラダー表示と編集、WebAssembly）
+4. Beremiz / OpenPLC Editor / matiec の実物で PLCopen XML と ST を確かめる
+5. 安全条件の形式検証（ESBMC-PLC などとの連携）
+6. ラダー図の画像・ASCII表示（`render`）

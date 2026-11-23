@@ -1,0 +1,13 @@
+test "自己保持" {
+  set X0 on
+  run 1
+  set X0 off
+  run 5
+  expect Y0 on
+  set X1 on
+  run 1
+  expect Y0 off
+  set X1 off
+  run 3
+  expect Y0 off
+}

@@ -3,10 +3,10 @@
 package profile
 
 import (
-	"fmt"
 	"sort"
 
-	"rungkit/internal/domain/ladder"
+	"github.com/Piyoone3939/rungkit/internal/domain/i18n"
+	"github.com/Piyoone3939/rungkit/internal/domain/ladder"
 )
 
 // Class is what an operand refers to.
@@ -22,7 +22,7 @@ const (
 )
 
 func (c Class) String() string {
-	return [...]string{"ビット", "ワード", "定数", "タイマー", "カウンタ", "時間定数"}[c]
+	return i18n.T([...]string{"ビット", "ワード", "定数", "タイマー", "カウンタ", "時間定数"}[c])
 }
 
 // Operand is a resolved operand.
@@ -83,7 +83,7 @@ func Get(name string) (Profile, error) {
 	if p, ok := registry[name]; ok {
 		return p, nil
 	}
-	return nil, fmt.Errorf("プロファイル %q はありません（使えるもの: %v）", name, Names())
+	return nil, i18n.Errorf("プロファイル %q はありません（使えるもの: %v）", name, Names())
 }
 
 // Names lists the registered profiles.

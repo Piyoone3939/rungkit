@@ -1,0 +1,68 @@
+profile melsec-iqr
+
+sym X0 "V1 立上り入力"
+sym X1 "V2 カウント入力"
+sym X2 "V6 1つ目のOUT"
+sym X3 "V6 2つ目のOUT"
+sym X4 "V7 タイマー入力"
+sym X5 "V9 パルス入力"
+sym D10 "V1 立上りの回数"
+sym D20 "V3 MULの下位"
+sym D21 "V3 MULの上位"
+sym D30 "V4 DIVの商"
+sym D31 "V4 DIVの余り"
+sym D40 "V5 INCの桁あふれ"
+sym D50 "V9 パルスの回数"
+sym M5 "V8 分岐前の条件"
+sym M6 "V8 分岐の中の条件"
+sym M7 "V8 結果"
+
+rung "V1 RUN直後にX0がONのとき、立上りは検出されるか" {
+  rise(X0) -> INC(D10)
+}
+
+rung "V2 カウンタは設定値で止まるか" {
+  X1 -> CTU(C0, K3)
+}
+
+rung "V3 MULは結果の上位をD21に書くか" {
+  SM402 -> MUL(K300, K300, D20)
+}
+
+rung "V4 DIVは余りをD31に書くか（負の数の割り算）" {
+  SM402 -> DIV(K-7, K2, D30)
+}
+
+rung "V5 INCは16ビットで桁あふれするか" {
+  SM402 -> {
+    MOV(K32767, D40)
+    INC(D40)
+  }
+}
+
+rung "V6 ダブルコイル（1つ目）" {
+  X2 -> OUT(Y0)
+}
+
+rung "V6 ダブルコイル（2つ目）: 後ろのOUTが勝つか" {
+  X3 -> OUT(Y0)
+}
+
+rung "V7 1秒タイマー: 何スキャン目でONになるか" {
+  X4 -> TON(T1, K10)
+}
+
+rung "V8 出力の分岐は分岐前の通電を使うか" {
+  M5 -> {
+    RST(M5)
+    M6 -> SET(M7)
+  }
+}
+
+rung "V9 PLSは1スキャンだけONになるか" {
+  X5 -> PLS(M20)
+}
+
+rung "V9 PLSの回数" {
+  M20 -> INC(D50)
+}

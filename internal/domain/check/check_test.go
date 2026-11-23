@@ -4,8 +4,8 @@ import (
 	"strings"
 	"testing"
 
-	"rungkit/internal/domain/ladder"
-	"rungkit/internal/infrastructure/ldt"
+	"github.com/Piyoone3939/rungkit/internal/domain/ladder"
+	"github.com/Piyoone3939/rungkit/internal/infrastructure/ldt"
 )
 
 func codes(t *testing.T, src string) string {
@@ -109,5 +109,22 @@ func TestShapeAndProfileErrors(t *testing.T) {
 	p.Profile = "omron"
 	if ds := Program(p); len(ds) != 1 || ds[0].Code != "E_UNKNOWN_PROFILE" {
 		t.Errorf("got %+v", ds)
+	}
+}
+
+func TestMelsecSymbolTypeIgnored(t *testing.T) {
+	if got := codes(t, "sym Y2 : BOOL @ %QX0.2 \"lamp\"\nrung { X0 -> OUT(Y2) }"); got != "W_SYMBOL_TYPE_IGNORED" {
+		t.Errorf("got %q", got)
+	}
+	if got := codes(t, "sym Y2 \"lamp\"\nrung { X0 -> OUT(Y2) }"); got != "" {
+		t.Errorf("got %q", got)
+	}
+}
+
+func TestBadLabel(t *testing.T) {
+	p := &ladder.Program{Profile: "melsec-iqr", Rungs: []*ladder.Rung{{ID: "r1", Label: "運転", Body: &ladder.Coil{Mode: ladder.Out, Operand: "Y0"}}}}
+	ds := Program(p)
+	if len(ds) != 1 || ds[0].Code != "E_BAD_LABEL" {
+		t.Fatalf("%+v", ds)
 	}
 }

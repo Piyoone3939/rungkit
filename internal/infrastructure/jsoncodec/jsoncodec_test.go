@@ -3,7 +3,7 @@ package jsoncodec
 import (
 	"testing"
 
-	"rungkit/internal/infrastructure/ldt"
+	"github.com/Piyoone3939/rungkit/internal/infrastructure/ldt"
 )
 
 func TestRoundTrip(t *testing.T) {

@@ -8,7 +8,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"rungkit/internal/domain/ladder"
+	"github.com/Piyoone3939/rungkit/internal/domain/ladder"
 )
 
 type jsonProgram struct {

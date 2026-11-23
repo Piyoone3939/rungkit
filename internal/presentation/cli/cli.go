@@ -8,8 +8,9 @@ import (
 	"fmt"
 	"io"
 
-	"rungkit/internal/application/workspace"
-	"rungkit/internal/presentation/mcpserver"
+	"github.com/Piyoone3939/rungkit/internal/application/workspace"
+	"github.com/Piyoone3939/rungkit/internal/domain/i18n"
+	"github.com/Piyoone3939/rungkit/internal/presentation/mcpserver"
 )
 
 const usage = `rungkit — ladder programs as text
@@ -19,15 +20,18 @@ usage:
   rungkit check FILE                            errors and warnings
   rungkit export -to FORMAT [-name N] FILE      melsec | st | plcopen | json | ldt
   rungkit test [-trace] [-json] FILE SCENARIO   run a .ldtest scenario
-  rungkit mcp [FILE]                            MCP server on stdio
+  rungkit mcp [-root DIR] [FILE]                MCP server on stdio; files only inside DIR (default: .)
 
 FILE is .ldt, .json or PLCopen .xml ("-" reads .ldt from stdin).
+Every command accepts -lang ja|en (default: RUNGKIT_LANG, then the system language).
 `
 
 // Options are settings that change how the workspace is assembled.
 type Options struct {
 	// ProgramName is the PROGRAM / POU name used by the st and plcopen exporters.
 	ProgramName string
+	// Root confines file access to this directory (used by the MCP server).
+	Root string
 }
 
 // Factory builds a workspace (the composition root supplies it).
@@ -50,10 +54,19 @@ func Run(args []string, stdout, stderr io.Writer, newWorkspace Factory) int {
 	name := fs.String("name", "Main", "PROGRAM / POU name (export -to st, plcopen)")
 	trace := fs.Bool("trace", false, "print the scan trace (test)")
 	asJSON := fs.Bool("json", false, "print results as JSON (test)")
+	root := fs.String("root", ".", "folder the MCP server may read and write (mcp)")
+	lang := fs.String("lang", "", "message language: ja or en")
 	if err := fs.Parse(rest); err != nil {
 		return 2
 	}
-	ws := newWorkspace(Options{ProgramName: *name})
+	if *lang != "" {
+		i18n.SetLanguage(*lang)
+	}
+	opt := Options{ProgramName: *name}
+	if cmd == "mcp" {
+		opt.Root = *root
+	}
+	ws := newWorkspace(opt)
 
 	nargs := map[string][2]int{"fmt": {1, 1}, "check": {1, 1}, "export": {1, 1}, "test": {2, 2}, "mcp": {0, 1}}
 	n, ok := nargs[cmd]
@@ -99,7 +112,7 @@ func Run(args []string, stdout, stderr io.Writer, newWorkspace Factory) int {
 		return printCheck(ws, file, stdout, stderr)
 	case "export":
 		if *to == "" {
-			fmt.Fprintf(stderr, "-to に書き出し形式を指定します（%v）\n", ws.Formats())
+			fmt.Fprintln(stderr, i18n.T("-to に書き出し形式を指定します（%v）", ws.Formats()))
 			return 2
 		}
 		out, err := ws.Export(*to)
@@ -139,7 +152,7 @@ func printCheck(ws *workspace.Workspace, file string, stdout, stderr io.Writer) 
 	}
 	if len(ds) == 0 {
 		p, _ := ws.Program()
-		fmt.Fprintf(stdout, "%s: OK（%d ラング）\n", file, len(p.Rungs))
+		fmt.Fprintln(stdout, i18n.T("%s: OK（%d ラング）", file, len(p.Rungs)))
 	}
 	return 0
 }

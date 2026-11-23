@@ -6,7 +6,8 @@ import (
 	"strconv"
 	"strings"
 
-	"rungkit/internal/domain/ladder"
+	"github.com/Piyoone3939/rungkit/internal/domain/i18n"
+	"github.com/Piyoone3939/rungkit/internal/domain/ladder"
 )
 
 // iec is a plain IEC 61131-3 dialect: named variables declared with sym,
@@ -22,7 +23,7 @@ func (*iec) TimerPresetOK(o Operand) bool          { return o.Class == TimeConst
 
 var (
 	reDirect = regexp.MustCompile(`^%([IQM])([XW])\d+(\.\d+)?$`)
-	reTime   = regexp.MustCompile(`^(?i)T#(\d+(ms|s|m|h|d))+$`)
+	reTime   = regexp.MustCompile(`^(?i)T#(\d+(\.\d+)?(ms|s|m|h|d)_?)+$`)
 	reIdent  = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*$`)
 )
 
@@ -45,11 +46,11 @@ func (*iec) Resolve(op string, p *ladder.Program) (Operand, error) {
 		return Operand{Class: Const, Value: v}, nil
 	}
 	if !reIdent.MatchString(op) {
-		return Operand{}, fmt.Errorf("%s: 変数名・%%アドレス・数値・T#時間 のどれでもありません", op)
+		return Operand{}, i18n.Errorf("%s: 変数名・%%アドレス・数値・T#時間 のどれでもありません", op)
 	}
 	s := p.Symbol(op)
 	if s == nil {
-		return Operand{}, fmt.Errorf("%s: 宣言されていません（sym %s : BOOL のように宣言します）", op, op)
+		return Operand{}, i18n.Errorf("%s: 宣言されていません（sym %s : BOOL のように宣言します）", op, op)
 	}
 	writable := !strings.HasPrefix(s.Address, "%I")
 	switch s.Type {
@@ -62,9 +63,9 @@ func (*iec) Resolve(op string, p *ladder.Program) (Operand, error) {
 	case "CTU":
 		return Operand{Class: CounterInst, Writable: true, Device: s.Type}, nil
 	case "":
-		return Operand{}, fmt.Errorf("%s: 型がありません（sym %s : BOOL のように書きます）", op, op)
+		return Operand{}, i18n.Errorf("%s: 型がありません（sym %s : BOOL のように書きます）", op, op)
 	}
-	return Operand{}, fmt.Errorf("%s: 型 %s にはまだ対応していません", op, s.Type)
+	return Operand{}, i18n.Errorf("%s: 型 %s にはまだ対応していません", op, s.Type)
 }
 
 func parseIECInt(s string) (int64, error) {

@@ -1,0 +1,18 @@
+test "押すたびに切り替わる" {
+  expect Y10 off
+  set X10 on
+  run 3
+  expect Y10 on
+  set X10 off
+  run 3
+  expect Y10 on
+  set X10 on
+  run 3
+  expect Y10 off
+  set X10 off
+  run 3
+  expect Y10 off
+  set X10 on
+  run 50
+  expect Y10 on
+}

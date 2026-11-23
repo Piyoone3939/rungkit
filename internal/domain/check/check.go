@@ -3,10 +3,10 @@
 package check
 
 import (
-	"fmt"
-
-	"rungkit/internal/domain/ladder"
-	"rungkit/internal/domain/profile"
+	"github.com/Piyoone3939/rungkit/internal/domain/i18n"
+	"github.com/Piyoone3939/rungkit/internal/domain/ladder"
+	"github.com/Piyoone3939/rungkit/internal/domain/profile"
+	"strings"
 )
 
 // Severity of a diagnostic.
@@ -49,9 +49,16 @@ func Program(p *ladder.Program) []Diagnostic {
 			c.add(Error, "E_DUPLICATE_SYMBOL", "", "", "sym %s が2回宣言されています", s.Name)
 		}
 		seen[s.Name] = true
+		if strings.HasPrefix(prof.Name(), "melsec") && (s.Type != "" || s.Address != "") {
+			c.add(Warning, "W_SYMBOL_TYPE_IGNORED", "", "",
+				"sym %s: 三菱のプロファイルでは型とアドレスを使いません（デバイス名とコメントだけを書きます）", s.Name)
+		}
 	}
 	for _, r := range p.Rungs {
 		c.rung = r.ID
+		if !ladder.ValidLabel(r.Label) {
+			c.add(Error, "E_BAD_LABEL", r.ID, "", "label %q は英数字と _ だけで書きます（説明は comment に書きます）", r.Label)
+		}
 		if err := ladder.CheckRung(r.Body); err != nil {
 			c.add(Error, err.Code, r.ID, err.Elem, "%s", err.Msg)
 			continue
@@ -74,7 +81,7 @@ type checker struct {
 }
 
 func (c *checker) add(sev Severity, code, rung, elem, format string, args ...any) {
-	c.ds = append(c.ds, Diagnostic{sev, code, fmt.Sprintf(format, args...), rung, elem})
+	c.ds = append(c.ds, Diagnostic{sev, code, i18n.T(format, args...), rung, elem})
 }
 
 func (c *checker) errAt(e ladder.Element, code, format string, args ...any) {
@@ -105,7 +112,7 @@ func (c *checker) elem(e ladder.Element) {
 	switch v := e.(type) {
 	case *ladder.Contact:
 		if o, ok := c.resolve(e, v.Operand); ok {
-			c.want(e, v.Operand, o, "接点", profile.Bit, profile.TimerInst, profile.CounterInst)
+			c.want(e, v.Operand, o, i18n.T("接点"), profile.Bit, profile.TimerInst, profile.CounterInst)
 		}
 	case *ladder.Compare:
 		if !validOp(v.Op) {
@@ -113,7 +120,7 @@ func (c *checker) elem(e ladder.Element) {
 		}
 		for _, op := range []string{v.LHS, v.RHS} {
 			if o, ok := c.resolve(e, op); ok {
-				c.want(e, op, o, "比較", profile.Word, profile.Const)
+				c.want(e, op, o, i18n.T("比較"), profile.Word, profile.Const)
 			}
 		}
 	case *ladder.Coil:
@@ -122,7 +129,7 @@ func (c *checker) elem(e ladder.Element) {
 			return
 		}
 		if v.Mode == ladder.Reset {
-			if !c.want(e, v.Operand, o, "RST", profile.Bit, profile.Word, profile.TimerInst, profile.CounterInst) {
+			if !c.want(e, v.Operand, o, i18n.T("RST"), profile.Bit, profile.Word, profile.TimerInst, profile.CounterInst) {
 				return
 			}
 		} else if !c.want(e, v.Operand, o, string(v.Mode), profile.Bit) {
@@ -145,23 +152,23 @@ func (c *checker) elem(e ladder.Element) {
 			c.errAt(e, "E_INSTR_UNSUPPORTED", "%s ではタイマー %s は使えません（使えるもの: %v）", c.prof.Name(), v.Kind, c.prof.TimerKinds())
 		}
 		if o, ok := c.resolve(e, v.Instance); ok {
-			c.want(e, v.Instance, o, "タイマーの指定", profile.TimerInst)
+			c.want(e, v.Instance, o, i18n.T("タイマーの指定"), profile.TimerInst)
 		}
 		if o, ok := c.resolve(e, v.Preset); ok && !c.prof.TimerPresetOK(o) {
 			c.errAt(e, "E_TYPE_MISMATCH", "%s はタイマーの設定値に使えません", v.Preset)
 		}
-		c.reuse(e, c.timers, v.Instance, "W_TIMER_REUSED", "タイマー")
+		c.reuse(e, c.timers, v.Instance, "W_TIMER_REUSED", i18n.T("タイマー"))
 	case *ladder.Counter:
 		if v.Kind != "CTU" {
 			c.errAt(e, "E_INSTR_UNSUPPORTED", "カウンタ %s にはまだ対応していません", v.Kind)
 		}
 		if o, ok := c.resolve(e, v.Instance); ok {
-			c.want(e, v.Instance, o, "カウンタの指定", profile.CounterInst)
+			c.want(e, v.Instance, o, i18n.T("カウンタの指定"), profile.CounterInst)
 		}
 		if o, ok := c.resolve(e, v.Preset); ok {
-			c.want(e, v.Preset, o, "カウンタの設定値", profile.Const, profile.Word)
+			c.want(e, v.Preset, o, i18n.T("カウンタの設定値"), profile.Const, profile.Word)
 		}
-		c.reuse(e, c.counters, v.Instance, "W_COUNTER_REUSED", "カウンタ")
+		c.reuse(e, c.counters, v.Instance, "W_COUNTER_REUSED", i18n.T("カウンタ"))
 	case *ladder.Instr:
 		spec, ok := c.prof.Instr(v.Name)
 		if !ok {
@@ -179,9 +186,9 @@ func (c *checker) elem(e ladder.Element) {
 			}
 			switch spec.Args[i] {
 			case profile.Src:
-				c.want(e, a, o, v.Name+" の入力", profile.Word, profile.Const)
+				c.want(e, a, o, i18n.T("%s の入力", v.Name), profile.Word, profile.Const)
 			case profile.Dst:
-				if c.want(e, a, o, v.Name+" の出力先", profile.Word) && !o.Writable {
+				if c.want(e, a, o, i18n.T("%s の出力先", v.Name), profile.Word) && !o.Writable {
 					c.errAt(e, "E_READ_ONLY", "%s は書き込めません", a)
 				}
 			}

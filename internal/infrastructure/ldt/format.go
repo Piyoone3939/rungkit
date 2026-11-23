@@ -5,7 +5,7 @@ import (
 	"strconv"
 	"strings"
 
-	"rungkit/internal/domain/ladder"
+	"github.com/Piyoone3939/rungkit/internal/domain/ladder"
 )
 
 // Format writes p in canonical .ldt form. Format(Parse(x)) is stable: running

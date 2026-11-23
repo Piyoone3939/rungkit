@@ -15,6 +15,8 @@ import (
 	"fmt"
 	"strconv"
 	"unicode/utf8"
+
+	"github.com/Piyoone3939/rungkit/internal/domain/i18n"
 )
 
 // Pos is a 1-based position in the source.
@@ -107,16 +109,16 @@ func lex(src string) ([]token, error) {
 					j++
 				}
 				if j < len(src) && src[j] == '\n' {
-					return nil, &Error{pos, "文字列が閉じていません"}
+					return nil, &Error{pos, i18n.T("文字列が閉じていません")}
 				}
 				j++
 			}
 			if j >= len(src) {
-				return nil, &Error{pos, "文字列が閉じていません"}
+				return nil, &Error{pos, i18n.T("文字列が閉じていません")}
 			}
 			s, err := strconv.Unquote(src[i : j+1])
 			if err != nil {
-				return nil, &Error{pos, "文字列の書き方が正しくありません"}
+				return nil, &Error{pos, i18n.T("文字列の書き方が正しくありません")}
 			}
 			toks = append(toks, token{tString, s, pos})
 			advance(j + 1 - i)
@@ -148,7 +150,7 @@ func lex(src string) ([]token, error) {
 			}[c]
 			if !ok {
 				r, _ := utf8.DecodeRuneInString(src[i:])
-				return nil, &Error{pos, fmt.Sprintf("使えない文字 %q があります", r)}
+				return nil, &Error{pos, i18n.T("使えない文字 %q があります", r)}
 			}
 			toks = append(toks, token{k, string(c), pos})
 			advance(1)

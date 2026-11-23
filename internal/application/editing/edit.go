@@ -8,8 +8,9 @@ import (
 	"fmt"
 	"strings"
 
-	"rungkit/internal/domain/check"
-	"rungkit/internal/domain/ladder"
+	"github.com/Piyoone3939/rungkit/internal/domain/check"
+	"github.com/Piyoone3939/rungkit/internal/domain/i18n"
+	"github.com/Piyoone3939/rungkit/internal/domain/ladder"
 )
 
 // Notation is what editing needs from a text notation (implemented by the
@@ -32,7 +33,7 @@ type Op struct {
 	Position string  `json:"position,omitempty" jsonschema:"insert_series: before or after"`
 	Text     string  `json:"text,omitempty" jsonschema:"ladder text, e.g. '(X0 | Y0) & !X1 -> OUT(Y0)', '!X2', 'M1 -> SET(M10)'"`
 	Comment  *string `json:"comment,omitempty" jsonschema:"rung or symbol comment"`
-	Label    *string `json:"label,omitempty" jsonschema:"rung label"`
+	Label    *string `json:"label,omitempty" jsonschema:"short rung identifier: letters, digits and _ only (descriptions go in comment)"`
 	Operand  string  `json:"operand,omitempty" jsonschema:"set_operand: new operand, e.g. X10"`
 	Name     string  `json:"name,omitempty" jsonschema:"symbol name"`
 	Type     string  `json:"type,omitempty" jsonschema:"symbol type (iec profile), e.g. BOOL, INT, TON"`
@@ -102,7 +103,7 @@ func (s *Session) View(r *ladder.Rung) RungView {
 // Undo reverts the last applied edit.
 func (s *Session) Undo() error {
 	if len(s.undo) == 0 {
-		return fmt.Errorf("元に戻す編集がありません")
+		return i18n.Errorf("元に戻す編集がありません")
 	}
 	prev := s.undo[len(s.undo)-1]
 	s.undo = s.undo[:len(s.undo)-1]
@@ -116,7 +117,7 @@ func (s *Session) Undo() error {
 // Redo re-applies the last undone edit.
 func (s *Session) Redo() error {
 	if len(s.redo) == 0 {
-		return fmt.Errorf("やり直す編集がありません")
+		return i18n.Errorf("やり直す編集がありません")
 	}
 	next := s.redo[len(s.redo)-1]
 	s.redo = s.redo[:len(s.redo)-1]
@@ -131,7 +132,7 @@ func (s *Session) Redo() error {
 // if every op succeeded and every touched rung is a valid ladder.
 func (s *Session) Apply(ops []Op) (*Result, error) {
 	if len(ops) == 0 {
-		return nil, fmt.Errorf("操作がありません")
+		return nil, i18n.Errorf("操作がありません")
 	}
 	work := s.prog.Clone()
 	before := map[string]bool{}
@@ -159,7 +160,7 @@ func (s *Session) Apply(ops []Op) (*Result, error) {
 			if err.Elem != "" {
 				where = " (" + err.Elem + ")"
 			}
-			return nil, fmt.Errorf("編集後のラング %s が正しい形になりません%s: %s %s", id, where, err.Code, err.Msg)
+			return nil, i18n.Errorf("編集後のラング %s が正しい形になりません%s: %s %s", id, where, err.Code, err.Msg)
 		}
 		res.Rungs = append(res.Rungs, s.View(r))
 	}
@@ -198,7 +199,7 @@ func (a *applier) touch(id string) {
 
 func need(field, val string) error {
 	if strings.TrimSpace(val) == "" {
-		return fmt.Errorf("%s が必要です", field)
+		return i18n.Errorf("%s が必要です", field)
 	}
 	return nil
 }
@@ -209,7 +210,7 @@ func (a *applier) rung(id string) (*ladder.Rung, int, error) {
 	}
 	r, i := a.p.Rung(id)
 	if r == nil {
-		return nil, -1, fmt.Errorf("ラング %s はありません", id)
+		return nil, -1, i18n.Errorf("ラング %s はありません", id)
 	}
 	return r, i, nil
 }
@@ -224,7 +225,7 @@ func (a *applier) insertAt(after string) (int, error) {
 	}
 	r, i := a.p.Rung(after)
 	if r == nil {
-		return 0, fmt.Errorf("after のラング %s はありません", after)
+		return 0, i18n.Errorf("after のラング %s はありません", after)
 	}
 	return i + 1, nil
 }
@@ -235,7 +236,7 @@ func (a *applier) fragment(text string) (ladder.Node, error) {
 	}
 	n, err := a.notation.ParseFragment(text)
 	if err != nil {
-		return nil, fmt.Errorf("text を読めません: %w", err)
+		return nil, i18n.Errorf("text を読めません: %w", err)
 	}
 	return n, nil
 }
@@ -260,6 +261,9 @@ func (a *applier) apply(op Op) error {
 			r.Comment = *op.Comment
 		}
 		if op.Label != nil {
+			if !ladder.ValidLabel(*op.Label) {
+				return i18n.Errorf("label %q は英数字と _ だけで書きます（説明は comment に書きます）", *op.Label)
+			}
 			r.Label = *op.Label
 		}
 		a.p.Rungs = append(a.p.Rungs[:at], append([]*ladder.Rung{r}, a.p.Rungs[at:]...)...)
@@ -288,7 +292,7 @@ func (a *applier) apply(op Op) error {
 			return err
 		}
 		if op.After == r.ID {
-			return fmt.Errorf("自分自身の後ろには動かせません")
+			return i18n.Errorf("自分自身の後ろには動かせません")
 		}
 		a.p.Rungs = append(a.p.Rungs[:i], a.p.Rungs[i+1:]...)
 		at, err := a.insertAt(op.After)
@@ -303,12 +307,15 @@ func (a *applier) apply(op Op) error {
 			return err
 		}
 		if op.Comment == nil && op.Label == nil {
-			return fmt.Errorf("comment か label が必要です")
+			return i18n.Errorf("comment か label が必要です")
 		}
 		if op.Comment != nil {
 			r.Comment = *op.Comment
 		}
 		if op.Label != nil {
+			if !ladder.ValidLabel(*op.Label) {
+				return i18n.Errorf("label %q は英数字と _ だけで書きます（説明は comment に書きます）", *op.Label)
+			}
 			r.Label = *op.Label
 		}
 		a.touch(r.ID)
@@ -327,7 +334,7 @@ func (a *applier) apply(op Op) error {
 		case "after":
 			after = true
 		default:
-			return fmt.Errorf("position は before か after です")
+			return i18n.Errorf("position は before か after です")
 		}
 		p := l.parent()
 		if s, ok := p.node.(*ladder.Series); ok {
@@ -362,7 +369,7 @@ func (a *applier) apply(op Op) error {
 		}
 		s, from, to, ok := commonSeries(l, l2)
 		if !ok {
-			return fmt.Errorf("target と to は同じ直列の中で、target が左になるように指定します")
+			return i18n.Errorf("target と to は同じ直列の中で、target が左になるように指定します")
 		}
 		span := &ladder.Series{Items: append([]ladder.Node(nil), s.Items[from:to+1]...)}
 		par := &ladder.Parallel{Items: []ladder.Node{span, frag}}
@@ -391,7 +398,7 @@ func (a *applier) apply(op Op) error {
 		case *ladder.Parallel:
 			c.Items = append(c.Items[:p.idx], c.Items[p.idx+1:]...)
 		default:
-			return fmt.Errorf("%s はラングに1つだけの要素です。ラングごと消すときは delete_rung を使います", op.Target)
+			return i18n.Errorf("%s はラングに1つだけの要素です。ラングごと消すときは delete_rung を使います", op.Target)
 		}
 		a.touch(l.rung.ID)
 	case "set_operand":
@@ -412,7 +419,7 @@ func (a *applier) apply(op Op) error {
 		case *ladder.Counter:
 			e.Instance = op.Operand
 		default:
-			return fmt.Errorf("%s のデバイスは set_operand では変えられません（replace_element を使います）", op.Target)
+			return i18n.Errorf("%s のデバイスは set_operand では変えられません（replace_element を使います）", op.Target)
 		}
 		a.touch(l.rung.ID)
 	case "set_symbol":
@@ -438,11 +445,11 @@ func (a *applier) apply(op Op) error {
 				return nil
 			}
 		}
-		return fmt.Errorf("sym %s はありません", op.Name)
+		return i18n.Errorf("sym %s はありません", op.Name)
 	case "":
-		return fmt.Errorf("op が必要です")
+		return i18n.Errorf("op が必要です")
 	default:
-		return fmt.Errorf("操作 %q はありません。使えるもの:\n%s", op.Op, Ops)
+		return i18n.Errorf("操作 %q はありません。使えるもの:\n%s", op.Op, Ops)
 	}
 	return nil
 }
@@ -507,7 +514,7 @@ func (a *applier) find(id string) (*location, error) {
 			return &location{rung: r, path: path, elem: elem}, nil
 		}
 	}
-	return nil, fmt.Errorf("要素 %s はありません", id)
+	return nil, i18n.Errorf("要素 %s はありません", id)
 }
 
 // search walks n looking for the element id. path holds the steps that led to

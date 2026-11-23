@@ -229,3 +229,20 @@ func bump(counter *int, id, prefix string) {
 		*counter = n
 	}
 }
+
+// ValidLabel tells whether s can be a rung label: letters, digits and _,
+// not starting with a digit. Descriptions belong in the rung comment.
+func ValidLabel(s string) bool {
+	if s == "" {
+		return true
+	}
+	for i, r := range s {
+		switch {
+		case r == '_', r >= 'a' && r <= 'z', r >= 'A' && r <= 'Z':
+		case r >= '0' && r <= '9' && i > 0:
+		default:
+			return false
+		}
+	}
+	return true
+}

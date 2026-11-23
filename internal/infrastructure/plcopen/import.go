@@ -9,8 +9,9 @@ import (
 	"strconv"
 	"strings"
 
-	"rungkit/internal/domain/ladder"
-	"rungkit/internal/domain/profile"
+	"github.com/Piyoone3939/rungkit/internal/domain/i18n"
+	"github.com/Piyoone3939/rungkit/internal/domain/ladder"
+	"github.com/Piyoone3939/rungkit/internal/domain/profile"
 )
 
 // ---- XML model (namespaces are ignored; local names match) ----
@@ -109,7 +110,7 @@ type xBlockVar struct {
 func Import(data []byte) (*ladder.Program, error) {
 	var proj xProject
 	if err := xml.Unmarshal(data, &proj); err != nil {
-		return nil, fmt.Errorf("XMLを読めません: %w", err)
+		return nil, i18n.Errorf("XMLを読めません: %w", err)
 	}
 	p := &ladder.Program{Profile: "iec"}
 	for _, d := range proj.AddData {
@@ -130,7 +131,7 @@ func Import(data []byte) (*ladder.Program, error) {
 		}
 	}
 	if pou == nil {
-		return nil, fmt.Errorf("ラダー（LD）で書かれた POU がありません")
+		return nil, i18n.Errorf("ラダー（LD）で書かれた POU がありません")
 	}
 	im := &importer{p: p, melsec: strings.HasPrefix(p.Profile, "melsec"), prof: prof}
 	im.symbols(pou.Interface)
@@ -216,10 +217,10 @@ func (im *importer) timerPreset(expr string) (string, error) {
 	}
 	ms, err := profile.ParseDuration(expr)
 	if err != nil {
-		return "", fmt.Errorf("タイマーの設定値 %q を読めません", expr)
+		return "", i18n.Errorf("タイマーの設定値 %q を読めません", expr)
 	}
 	if ms%100 != 0 {
-		return "", fmt.Errorf("タイマーの設定値 %s は100ms単位ではないので、三菱のタイマーにできません", expr)
+		return "", i18n.Errorf("タイマーの設定値 %s は100ms単位ではないので、三菱のタイマーにできません", expr)
 	}
 	return "K" + strconv.FormatInt(ms/100, 10), nil
 }
@@ -316,11 +317,11 @@ func (im *importer) body(elems []xElem) error {
 	dataIn := func(e *xElem, param string) (string, error) {
 		ps := blockIn(e, param)
 		if len(ps) != 1 {
-			return "", fmt.Errorf("ブロック %d の %s に値がつながっていません", e.LocalID, param)
+			return "", i18n.Errorf("ブロック %d の %s に値がつながっていません", e.LocalID, param)
 		}
 		src := byID[ps[0].id]
 		if src == nil || src.XMLName.Local != "inVariable" {
-			return "", fmt.Errorf("ブロック %d の %s は inVariable からつなぎます（ブロック同士の接続には対応していません）", e.LocalID, param)
+			return "", i18n.Errorf("ブロック %d の %s は inVariable からつなぎます（ブロック同士の接続には対応していません）", e.LocalID, param)
 		}
 		return strings.TrimSpace(src.Expression), nil
 	}
@@ -336,7 +337,7 @@ func (im *importer) body(elems []xElem) error {
 				}
 			}
 		}
-		return "", fmt.Errorf("ブロック %d の %s の行き先（outVariable）がありません", e.LocalID, param)
+		return "", i18n.Errorf("ブロック %d の %s の行き先（outVariable）がありません", e.LocalID, param)
 	}
 
 	// Pass 1: decide which points are the same net.
@@ -425,7 +426,7 @@ func (im *importer) body(elems []xElem) error {
 			}
 		case "coil":
 			if e.Negated {
-				return fmt.Errorf("否定コイル（%d）にはまだ対応していません", e.LocalID)
+				return i18n.Errorf("否定コイル（%d）にはまだ対応していません", e.LocalID)
 			}
 			c := &ladder.Coil{Mode: ladder.Out, Operand: strings.TrimSpace(e.Variable)}
 			switch {
@@ -462,7 +463,7 @@ func (im *importer) body(elems []xElem) error {
 				if typ == "CTU" {
 					powerIn, dataParam = "CU", "PV"
 					if len(blockIn(e, "R")) > 0 {
-						return fmt.Errorf("CTU（%d）の R 入力の接続にはまだ対応していません", e.LocalID)
+						return i18n.Errorf("CTU（%d）の R 入力の接続にはまだ対応していません", e.LocalID)
 					}
 				}
 				preset, err := dataIn(e, dataParam)
@@ -514,14 +515,14 @@ func (im *importer) body(elems []xElem) error {
 				addOut(e, en, in)
 			case typ == "R_TRIG" && rtrigUsed[e.LocalID]:
 			default:
-				return fmt.Errorf("ブロック %s（%d）にはまだ対応していません", e.TypeName, e.LocalID)
+				return i18n.Errorf("ブロック %s（%d）にはまだ対応していません", e.TypeName, e.LocalID)
 			}
 		default:
-			return fmt.Errorf("PLCopen の要素 <%s>（%d）にはまだ対応していません", name, e.LocalID)
+			return i18n.Errorf("PLCopen の要素 <%s>（%d）にはまだ対応していません", name, e.LocalID)
 		}
 	}
 	if !hasRail {
-		return fmt.Errorf("左の母線（leftPowerRail）がありません")
+		return i18n.Errorf("左の母線（leftPowerRail）がありません")
 	}
 	return im.rungs(S, edges, comments)
 }
@@ -582,7 +583,7 @@ func (im *importer) rungs(S point, edges []*edge, comments []comment) error {
 	for i, r := range rungs {
 		body := ladder.Normalize(r.body)
 		if err := ladder.CheckRung(body); err != nil {
-			return fmt.Errorf("%d 番目のラング: %s %s", i+1, err.Code, err.Msg)
+			return i18n.Errorf("%d 番目のラング: %s %s", i+1, err.Code, err.Msg)
 		}
 		im.p.Rungs = append(im.p.Rungs, &ladder.Rung{Body: body, Comment: strings.Join(notes[i], " / ")})
 	}
@@ -672,7 +673,7 @@ func reduce(S point, es []*edge) (ladder.Node, key, error) {
 		}
 	}
 	if len(es) != 1 || es[0].from != S || es[0].to != sink {
-		return nil, top, fmt.Errorf("E_NON_SERIES_PARALLEL: 直列・並列で表せない回路（ブリッジ回路など）があります（%.0f, %.0f 付近）", top.x, top.y)
+		return nil, top, i18n.Errorf("E_NON_SERIES_PARALLEL: 直列・並列で表せない回路（ブリッジ回路など）があります（%.0f, %.0f 付近）", top.x, top.y)
 	}
 	return es[0].node, top, nil
 }

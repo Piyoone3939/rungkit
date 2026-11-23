@@ -15,9 +15,10 @@ import (
 	"strconv"
 	"strings"
 
-	"rungkit/internal/domain/check"
-	"rungkit/internal/domain/ladder"
-	"rungkit/internal/domain/profile"
+	"github.com/Piyoone3939/rungkit/internal/domain/check"
+	"github.com/Piyoone3939/rungkit/internal/domain/i18n"
+	"github.com/Piyoone3939/rungkit/internal/domain/ladder"
+	"github.com/Piyoone3939/rungkit/internal/domain/profile"
 )
 
 // DefaultScanMs is the scan time used unless SetScanTime is called.
@@ -32,7 +33,7 @@ type RuntimeError struct {
 }
 
 func (e *RuntimeError) Error() string {
-	return fmt.Sprintf("スキャン %d, %s/%s: %s", e.Scan, e.Rung, e.Elem, e.Msg)
+	return i18n.T("スキャン %d, %s/%s: %s", e.Scan, e.Rung, e.Elem, e.Msg)
 }
 
 // Record is the state of the watched operands after one scan.
@@ -88,7 +89,7 @@ func New(p *ladder.Program) (*Sim, error) {
 				break
 			}
 		}
-		return nil, fmt.Errorf("エラーがあるので動かせません: %s %s", d.Code, d.Message)
+		return nil, i18n.Errorf("エラーがあるので動かせません: %s %s", d.Code, d.Message)
 	}
 	prof, _ := profile.Get(p.Profile)
 	s := &Sim{p: p, prof: prof, melsec: strings.HasPrefix(p.Profile, "melsec"), scanMs: DefaultScanMs, cache: map[string]profile.Operand{}}
@@ -111,7 +112,7 @@ func (s *Sim) Reset() {
 // SetScanTime sets the virtual time one scan takes.
 func (s *Sim) SetScanTime(ms int64) error {
 	if ms <= 0 {
-		return fmt.Errorf("スキャン時間は1ms以上です")
+		return i18n.Errorf("スキャン時間は1ms以上です")
 	}
 	s.scanMs = ms
 	return nil
@@ -186,7 +187,7 @@ func (s *Sim) Scan() error {
 }
 
 func (s *Sim) fail(format string, args ...any) error {
-	return &RuntimeError{Scan: s.scans + 1, Rung: s.rung, Elem: s.elem, Msg: fmt.Sprintf(format, args...)}
+	return &RuntimeError{Scan: s.scans + 1, Rung: s.rung, Elem: s.elem, Msg: i18n.T(format, args...)}
 }
 
 // ---- execution ----
@@ -675,7 +676,7 @@ func (s *Sim) Set(op string, v int64) error {
 		return err
 	}
 	if o.Class != profile.Bit && o.Class != profile.Word {
-		return fmt.Errorf("%s（%s）は外から設定できません", op, o.Class)
+		return i18n.Errorf("%s（%s）は外から設定できません", op, o.Class)
 	}
 	f, wasForced := s.forced[op]
 	delete(s.forced, op)
@@ -693,7 +694,7 @@ func (s *Sim) Force(op string, v int64) error {
 		return err
 	}
 	if o.Class != profile.Bit && o.Class != profile.Word {
-		return fmt.Errorf("%s（%s）は強制できません", op, o.Class)
+		return i18n.Errorf("%s（%s）は強制できません", op, o.Class)
 	}
 	s.forced[op] = v
 	return nil

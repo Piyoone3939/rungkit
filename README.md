@@ -1,65 +1,77 @@
 # rungkit
 
-ラダープログラムを、AIと人が同じテキストで読み書きするための土台です。
-PLCのラダー図を「直列・並列の木」として持ち、テキスト（`.ldt`）、JSON、三菱のリスト形式、IEC 61131-3 の ST に変換します。
+English | [日本語](README.ja.md)
 
-> 状態: 試作（v0）。編集コマンド、シミュレーター、MCPサーバーまであります。画面はまだありません。
+An AI-native toolkit for PLC ladder programs.
+rungkit keeps a ladder diagram as a series-parallel tree, lets an AI agent edit it over MCP, and lets the agent check its own work on a scan simulator. It supports Mitsubishi (MELSEC iQ-R) and IEC 61131-3, and reads and writes ladder text (`.ldt`), JSON, the MELSEC instruction list, Structured Text and PLCopen XML.
 
-## AIから使う（MCP）
+> Status: prototype (0.x). Editing commands, simulator, MCP server and PLCopen XML are in place; the browser UI comes next.
+
+## Install
 
 ```sh
-go build -o rungkit ./cmd/rungkit            # Windows では rungkit.exe
-claude mcp add rungkit -- /path/to/rungkit mcp
+go install github.com/Piyoone3939/rungkit/cmd/rungkit@latest
 ```
 
-`rungkit mcp FILE` のようにファイルを渡すと、開いた状態で起動します。ツールは次のとおりです。
+Binaries for each OS will be on GitHub Releases once the project is public.
 
-| ツール | 内容 |
+## Use it from an AI (MCP)
+
+```sh
+claude mcp add rungkit -- rungkit mcp
+```
+
+- `rungkit mcp FILE` starts with FILE open
+- The MCP server reads and writes only inside the folder it was started in (change with `-root DIR`); standard input (`-`) is refused
+
+Tools:
+
+| Tool | What it does |
 |---|---|
-| `open_program` / `new_program` / `save_program` | 開く / 新しく作る / 保存（保存するまでファイルは変わらない） |
-| `read_program` | プログラム全体を、ラングID（`// r1`）と要素ID（`X0@e3`）付きで表示 |
-| `edit_program` | 編集コマンドのリストをまとめて適用。1つでも失敗したら何も変わらない。1回が元に戻す1単位 |
-| `undo` / `redo` | 元に戻す / やり直す |
-| `check_program` | エラーと警告（コード、ラングID、要素ID付き） |
-| `run_scenario` | シナリオをシミュレーターで実行（テキストか `.ldtest` のパス。`trace` でスキャンごとの記録） |
-| `export_program` | `melsec` / `st` / `plcopen` / `json` / `ldt` に書き出し |
+| `open_program` / `new_program` / `save_program` | open / start / save (files change only on save) |
+| `read_program` | show the program with rung IDs (`// r1`) and element IDs (`X0@e3`) |
+| `edit_program` | apply a list of edit commands; all or nothing; one undo step |
+| `undo` / `redo` | undo / redo |
+| `check_program` | errors and warnings with codes, rung and element IDs |
+| `run_scenario` | run scenarios on the simulator (text or a `.ldtest` path; `trace` records every scan) |
+| `export_program` | write `melsec` / `st` / `plcopen` / `json` / `ldt` |
 
-編集コマンド（`edit_program` の `ops`）:
+Edit commands (`ops` of `edit_program`):
 
-| コマンド | 内容 |
+| Command | What it does |
 |---|---|
-| `add_rung(text, after?, comment?, label?)` | ラングを追加 |
-| `replace_rung(rung, text)` / `delete_rung(rung)` / `move_rung(rung, after)` / `set_rung(rung, comment?, label?)` | ラングの置き換え・削除・移動・コメント |
-| `insert_series(target, position, text)` | 要素の前後に条件を直列で入れる |
-| `insert_parallel(target, to?, text)` | 要素（または直列の範囲 target..to）に並列の枝を足す。出力に足すと出力の分岐になる |
-| `replace_element(target, text)` / `delete_element(target)` / `set_operand(target, operand)` | 要素の置き換え・削除・デバイス変更 |
-| `set_symbol(name, type?, address?, comment?)` / `delete_symbol(name)` | デバイスコメント・変数宣言 |
+| `add_rung(text, after?, comment?, label?)` | add a rung |
+| `replace_rung(rung, text)` / `delete_rung(rung)` / `move_rung(rung, after)` / `set_rung(rung, comment?, label?)` | replace, delete, move or comment a rung |
+| `insert_series(target, position, text)` | put conditions before or after an element |
+| `insert_parallel(target, to?, text)` | add a branch parallel to an element (or the series range target..to); on an output it adds an output branch |
+| `replace_element(target, text)` / `delete_element(target)` / `set_operand(target, operand)` | replace, delete or re-address an element |
+| `set_symbol(name, type?, address?, comment?)` / `delete_symbol(name)` | device comments and variable declarations |
 
-例: 停止ボタンの後ろに非常停止を足す
+Example: add an emergency stop after the stop button
 
 ```json
 {"ops": [
   {"op": "insert_series", "target": "e3", "position": "after", "text": "!X3"},
-  {"op": "set_symbol", "name": "X3", "comment": "非常停止"}
+  {"op": "set_symbol", "name": "X3", "comment": "emergency stop"}
 ]}
 ```
 
-ラングが正しい形でなくなる編集（出力の右に接点を置く、など）は理由付きで断ります。デバイスの間違い（入力に書き込む、など）は断らずに `diagnostics` で返すので、続けて直せます。
+Edits that would make a rung an invalid ladder (a contact right of an output, …) are refused with the reason. Device mistakes (writing an input, …) are not refused but returned as `diagnostics`, so the agent can fix them next.
 
-## 書き方（.ldt）
+## Ladder text (.ldt)
 
 ```
 profile melsec-iqr
 
-sym X0 "運転ボタン"
-sym X1 "停止ボタン"
-sym Y0 "コンベアモータ"
+sym X0 "start button"
+sym X1 "stop button"
+sym Y0 "conveyor motor"
 
-rung "運転 自己保持" {
+rung "run, self-holding" {
   (X0 | Y0) & !X1 -> OUT(Y0)
 }
 
-rung "ランプと到着の記録" {
+rung "lamp and arrival" {
   Y0 -> {
     OUT(Y1)
     rise(X2) -> SET(M10)
@@ -67,126 +79,139 @@ rung "ランプと到着の記録" {
 }
 ```
 
-| 書き方 | 意味 |
+| Syntax | Meaning |
 |---|---|
-| `A & B` | 直列（AND）。`&` は `\|` より先に結びつく |
-| `A \| B` | 並列（OR） |
-| `!X1` | b接点 |
-| `rise(X0)` / `fall(X0)` | 立上り / 立下り |
-| `[D0 >= K100]` | 比較（`=` `<>` `<` `<=` `>` `>=`） |
-| `条件 -> 出力` | 出力は右端に1つ、または `{ }` で分岐 |
-| `OUT` `SET` `RST` `PLS` `PLF` | コイル |
-| `TON(T0, K50)` / `CTU(C0, K10)` | タイマー / カウンタ |
-| `MOV` `ADD` `SUB` `MUL` `DIV` `INC` `DEC`（末尾 `P` でパルス実行） | 命令 |
-| `// ...` | コメント |
+| `A & B` | series (AND); binds tighter than `\|` |
+| `A \| B` | parallel (OR) |
+| `!X1` | normally closed contact |
+| `rise(X0)` / `fall(X0)` | rising / falling edge |
+| `[D0 >= K100]` | comparison (`=` `<>` `<` `<=` `>` `>=`) |
+| `condition -> output` | one output at the right end, or a `{ }` block of branches |
+| `OUT` `SET` `RST` `PLS` `PLF` | coils |
+| `TON(T0, K50)` / `CTU(C0, K10)` | timer / counter |
+| `MOV` `ADD` `SUB` `MUL` `DIV` `INC` `DEC` (suffix `P`: once per rising edge) | instructions |
+| `// ...` | comment |
 
-例: [examples/conveyor.ldt](examples/conveyor.ldt)
+Example: [examples/conveyor.ldt](examples/conveyor.ldt)
 
-## 使い方
+## Command line
 
 ```sh
-go run ./cmd/rungkit check examples/conveyor.ldt          # エラーと警告
-go run ./cmd/rungkit fmt -w examples/conveyor.ldt         # 正規の書き方にそろえる
-go run ./cmd/rungkit export -to melsec examples/conveyor.ldt
-go run ./cmd/rungkit export -to st examples/conveyor.ldt
-go run ./cmd/rungkit export -to json examples/conveyor.ldt
+rungkit check examples/conveyor.ldt          # errors and warnings
+rungkit fmt -w examples/conveyor.ldt         # canonical form
+rungkit export -to melsec examples/conveyor.ldt
+rungkit export -to st examples/conveyor.ldt
+rungkit export -to json examples/conveyor.ldt
 ```
 
-`check` はエラーに番号（`E_READ_ONLY` など）と行・列を付けます。AIが1件ずつ直せるようにするためです。
+`check` gives every problem a code (`E_READ_ONLY`, …) and a line and column, so an agent can fix them one by one.
+
+Messages are available in English and Japanese, chosen by `-lang en|ja`, then `RUNGKIT_LANG`, then the system language.
 
 ## PLCopen XML
 
-PLCopen XML（TC6 v2.01）のラダー図（LD）を読み書きできます。Beremiz / OpenPLC Editor / CODESYS などとやり取りするための形式です。
+Reads and writes PLCopen XML (TC6 v2.01) Ladder Diagram, to exchange programs with Beremiz, OpenPLC Editor, CODESYS and others.
 
 ```sh
-go run ./cmd/rungkit export -to plcopen -name Conveyor examples/conveyor.ldt > conveyor.xml
-go run ./cmd/rungkit check conveyor.xml          # .xml はそのまま開ける（fmt / test / mcp も同じ）
+rungkit export -to plcopen -name Conveyor examples/conveyor.ldt > conveyor.xml
+rungkit check conveyor.xml          # .xml opens directly (fmt / test / mcp too)
 ```
 
-- 書き出したXMLは公式スキーマ（tc6_xml_v201.xsd）で検証済みです
-- 対応する要素: 接点（a/b/立上り/立下り）、コイル（SET/RST/パルス）、TON/TOF/TP/CTU、比較（EQ/NE/LT/LE/GT/GE）、MOVE/ADD/SUB/MUL/DIV、パルス命令（R_TRIG 経由）、ラングのコメント
-- 読み込みでは配線のグラフを直列・並列の木に戻します。コイルの直列つなぎや、配線のOR（1つの入力に複数の線）も読めます。直列・並列で表せない回路（ブリッジ回路）は `E_NON_SERIES_PARALLEL` で断ります
-- PLCopen はIECの形式なので、三菱プロファイルは `K10` → `10`、`H1F` → `16#1F`、タイマー `K50` → `T#5000ms` のように書き出し、プロファイル名を `addData` に残して、読み込むときに三菱の書き方へ戻します
-- 往復で変わるもの: `INC`/`DEC` は `ADD`/`SUB`（同じ動き）、ワードの `RST` は `MOV(K0, …)`、1つのラングにある独立した回路は別々のラングになります
-- 書き出せないもの: タイマー・カウンタの `RST`、三菱タイマーの設定値にワードデバイスを使うもの
+- Exported files validate against the official schema (tc6_xml_v201.xsd)
+- Supported: contacts (NO/NC/rising/falling), coils (set/reset/pulse), TON/TOF/TP/CTU, comparisons (EQ/NE/LT/LE/GT/GE), MOVE/ADD/SUB/MUL/DIV, pulse instructions (through R_TRIG), rung comments
+- Import turns the wiring graph back into a series-parallel tree; chained coils and wired ORs work. Circuits that are not series-parallel (bridges) are refused with `E_NON_SERIES_PARALLEL`
+- PLCopen is IEC, so melsec programs are written with IEC spellings (`K10` → `10`, `H1F` → `16#1F`, timer `K50` → `T#5000ms`) and the profile is kept in `addData` to restore MELSEC spellings on import
+- Changed by a round trip: `INC`/`DEC` become `ADD`/`SUB` (same behavior), `RST` of a word becomes `MOV(K0, …)`, independent circuits in one rung become separate rungs
+- Not exportable: `RST` of timers and counters, MELSEC timers with a word device as preset
 
-## シミュレーター（.ldtest）
+## Simulator (.ldtest)
 
-プログラムを仮想時間でスキャンごとに動かし、シナリオどおりに動くかを確かめます。
+Runs the program scan by scan on virtual time and checks it against scenarios.
 
 ```
 scan 10ms
 
-test "ワークが来たら5秒後に1つ数える" {
+test "counts a part 5 s after it arrives" {
   set X0 on
-  run 1             // 1スキャン
+  run 1             // one scan
   set X0 off
   set X2 on
-  run 4s            // 仮想時間で4秒
+  run 4s            // 4 s of virtual time
   expect T0 off
   wait T0 on within 2s
   expect D0 1
 }
 ```
 
-| 命令 | 意味 |
+| Command | Meaning |
 |---|---|
-| `set OP 値` | 入力などを設定（`on` `off` `123` `K123` `H1F` `5s`） |
-| `force OP 値` / `unforce OP` | 値を固定する（プログラムが書いても変わらない） / 解除 |
-| `run N` / `run 5s` | Nスキャン / 指定時間だけ動かす |
-| `expect OP 値` | 今の値を確かめる |
-| `wait OP 値 within 6s` | 値になるまで動かす。時間内にならなければ失敗 |
-| `watch OP...` | スキャンごとの記録に入れる |
+| `set OP value` | set an input or other device (`on` `off` `123` `K123` `H1F` `5s`) |
+| `force OP value` / `unforce OP` | pin a value (program writes are ignored) / release |
+| `run N` / `run 5s` | run N scans / a span of time |
+| `expect OP value` | check the value now |
+| `wait OP value within 6s` | run until the value appears; fail after the time |
+| `watch OP...` | record after every scan |
 
-`T0.ET`（タイマーの経過時間）と `C0.CV`（カウンタの現在値）も読めます。テストは1件ごとに初期状態から始まります。
+`T0.ET` (timer elapsed time) and `C0.CV` (counter value) can be read too. Every test starts from a fresh state.
 
 ```sh
-go run ./cmd/rungkit test examples/conveyor.ldt examples/conveyor.ldtest
-go run ./cmd/rungkit test -trace examples/conveyor.ldt examples/conveyor.ldtest   # 値が変わったスキャンを表で表示
-go run ./cmd/rungkit test -json examples/conveyor.ldt examples/conveyor.ldtest    # AI向けの結果
+rungkit test examples/conveyor.ldt examples/conveyor.ldtest
+rungkit test -trace examples/conveyor.ldt examples/conveyor.ldtest   # table of scans where values changed
+rungkit test -json examples/conveyor.ldt examples/conveyor.ldtest    # for agents
 ```
 
-動き方はラダーに合わせています。
+The simulator follows ladder semantics:
 
-- ラングは上から順に、命令はすべて毎スキャン実行する（途中で評価を省略しない。立上り検出やタイマーが入力を見逃さない）
-- 出力はその場で書くので、同じスキャンの後ろのラングは新しい値を見る
-- 出力の分岐は、分岐前の通電状態を使う（三菱の MPS と同じ）
-- 三菱の `T` は100ms単位、カウンタは設定値で止まる、`MUL` は D(n+1) に上位、`DIV` は D(n+1) に余り、ワードは16ビットで桁あふれ
-- `SM400`（常時ON）、`SM401`（常時OFF）、`SM402`（最初のスキャンだけON）
-- 0で割ると、スキャン番号とラング・要素のIDを付けたエラーで止まる
+- Rungs run top to bottom and every instruction runs every scan (no short-circuit), so edges and timers never miss an input
+- Outputs are written immediately; later rungs in the same scan see them
+- An output branch uses the power flow from before the branch (like MELSEC MPS)
+- MELSEC `T` counts 100 ms, counters stop at the set value, `MUL` writes the high word to D(n+1), `DIV` the remainder to D(n+1), words wrap at 16 bits
+- `SM400` (always ON), `SM401` (always OFF), `SM402` (ON for the first scan)
+- Division by zero stops with an error naming the scan, rung and element
 
-## プロファイル
+## Profiles
 
-| 名前 | 内容 |
+| Name | |
 |---|---|
-| `melsec-iqr` | 三菱 iQ-R。X/Y/B/W は16進、`D0.3` のビット指定、`K`/`H` 定数、タイマーは100ms単位 |
-| `iec` | IEC 61131-3。`sym 名前 : 型 @ アドレス` で宣言、`%IX0.0`、`T#5s` |
+| `melsec-iqr` | Mitsubishi iQ-R: X/Y/B/W in hexadecimal, `D0.3` bit of word, `K`/`H` constants, timers in 100 ms |
+| `iec` | IEC 61131-3: declare with `sym name : type @ address`, `%IX0.0`, `T#5s` |
 
-## 構成（オニオンアーキテクチャ）
+## Structure (onion architecture)
 
-依存は外から内への一方向です。[internal/architecture_test.go](internal/architecture_test.go) がこのルールを検査します。
+Dependencies point inward only; [internal/architecture_test.go](internal/architecture_test.go) enforces it.
 
-| 層 | パッケージ | 役割 |
+| Layer | Package | Role |
 |---|---|---|
-| ドメイン | [ladder](internal/domain/ladder/) | ラングの木、正規化、形のルール、ID |
-| | [profile](internal/domain/profile/) | メーカーごとのデバイスと命令 |
-| | [check](internal/domain/check/) | エラーと警告 |
-| | [sim](internal/domain/sim/) | スキャンのシミュレーター |
-| アプリケーション | [editing](internal/application/editing/) | 編集コマンド、元に戻す・やり直す |
-| | [scenario](internal/application/scenario/) | シナリオの実行 |
-| | [workspace](internal/application/workspace/) | 開く・保存・確認・編集・書き出し・シナリオ（CLIとMCPの窓口）。必要なインターフェースをここで宣言する |
-| インフラ | [ldt](internal/infrastructure/ldt/) | `.ldt` テキストの読み書き |
-| | [ldtest](internal/infrastructure/ldtest/) | `.ldtest` シナリオの読み込み |
+| Domain | [ladder](internal/domain/ladder/) | rung tree, normalization, shape rules, IDs |
+| | [profile](internal/domain/profile/) | vendor devices and instructions |
+| | [check](internal/domain/check/) | errors and warnings |
+| | [sim](internal/domain/sim/) | scan simulator |
+| Application | [editing](internal/application/editing/) | edit commands, undo and redo |
+| | [scenario](internal/application/scenario/) | running scenarios |
+| | [workspace](internal/application/workspace/) | open, save, check, edit, export, scenarios (what CLI and MCP call); declares the interfaces it needs |
+| Infrastructure | [ldt](internal/infrastructure/ldt/) | `.ldt` text |
+| | [ldtest](internal/infrastructure/ldtest/) | `.ldtest` scenarios |
 | | [jsoncodec](internal/infrastructure/jsoncodec/) | JSON |
-| | [export/melsec](internal/infrastructure/export/melsec/) / [export/st](internal/infrastructure/export/st/) | 三菱リスト形式 / Structured Text |
-| | [plcopen](internal/infrastructure/plcopen/) | PLCopen XML の読み書き |
-| | [filestore](internal/infrastructure/filestore/) | ファイルの読み書き |
-| プレゼンテーション | [cli](internal/presentation/cli/) / [mcpserver](internal/presentation/mcpserver/) | コマンドライン / MCPサーバー |
-| 組み立て | [cmd/rungkit](cmd/rungkit/) | アダプタをつないで起動するだけ |
+| | [export/melsec](internal/infrastructure/export/melsec/) / [export/st](internal/infrastructure/export/st/) | MELSEC list / Structured Text |
+| | [plcopen](internal/infrastructure/plcopen/) | PLCopen XML |
+| | [filestore](internal/infrastructure/filestore/) | files (outside the working folder refused for MCP) |
+| | [locale](internal/infrastructure/locale/) | system language |
+| Presentation | [cli](internal/presentation/cli/) / [mcpserver](internal/presentation/mcpserver/) | command line / MCP server |
+| Shared | [i18n](internal/domain/i18n/) | English and Japanese messages (used by every layer; standard library only) |
+| Composition | [cmd/rungkit](cmd/rungkit/) | wires the adapters and starts |
 
-設計の考え方は [docs/design.md](docs/design.md) にあります。
+- Design: [docs/design.en.md](docs/design.en.md)
+- Decisions (license, distribution, scope): [docs/decisions.en.md](docs/decisions.en.md)
+- Checking against Mitsubishi's tools: [docs/verify-melsec.en.md](docs/verify-melsec.en.md)
+- How well AI agents use it: [eval/agent](eval/agent/README.md) (Sonnet 5/5, Haiku 5/5 after fixes)
 
-## 注意
+## Safety
 
-- 三菱リスト形式の**命令の並び**は標準の変換規則どおりですが、GX Works3 に取り込むときの**ファイル形式は未確認**です。
-- 実機の制御に使う前提ではありません。設計・検証・教育用です。
+- rungkit **does not talk to real PLCs** (no download, monitoring or forcing). Review what it writes and load it with the vendor's tool
+- Check ladder written by an AI with `check` and scenarios before use. Build safety functions such as emergency stops in wiring and safety devices, not in software
+- The MELSEC instruction **sequence** follows the standard conversion rules, but the **file format GX Works3 imports is not confirmed yet** ([how to check](docs/verify-melsec.en.md))
+- Mitsubishi Electric, MELSEC, GX Works and others are trademarks of their owners. rungkit is not affiliated with them
+
+## License
+
+Your choice of [MIT](LICENSE-MIT) or [Apache-2.0](LICENSE-APACHE).

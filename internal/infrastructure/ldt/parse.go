@@ -4,7 +4,8 @@ import (
 	"fmt"
 	"strings"
 
-	"rungkit/internal/domain/ladder"
+	"github.com/Piyoone3939/rungkit/internal/domain/i18n"
+	"github.com/Piyoone3939/rungkit/internal/domain/ladder"
 )
 
 // SourceMap remembers where each rung and element came from, so diagnostics
@@ -95,17 +96,17 @@ func (ps *parser) next() token {
 }
 
 func (ps *parser) errf(t token, format string, args ...any) error {
-	return &Error{t.pos, fmt.Sprintf(format, args...)}
+	return &Error{t.pos, i18n.T(format, args...)}
 }
 
 func (ps *parser) expect(k tokKind) (token, error) {
 	t := ps.next()
 	if t.kind != k {
-		got := tokNames[t.kind]
+		got := i18n.T(tokNames[t.kind])
 		if t.kind == tWord || t.kind == tCmp {
 			got = fmt.Sprintf("%q", t.text)
 		}
-		return t, ps.errf(t, "%s が必要ですが、%s があります", tokNames[k], got)
+		return t, ps.errf(t, "%s が必要ですが、%s があります", i18n.T(tokNames[k]), got)
 	}
 	return t, nil
 }
@@ -135,7 +136,7 @@ func ParseFragment(src string) (ladder.Node, error) {
 	}
 	ps := newParser()
 	if ps.peek().kind == tEOF {
-		return nil, &Error{ps.peek().pos, "中身が空です"}
+		return nil, &Error{ps.peek().pos, i18n.T("中身が空です")}
 	}
 	if !ps.isCall() && ps.peek().kind != tLBrace {
 		if n, err := ps.parseOr(); err == nil && ps.peek().kind == tEOF {

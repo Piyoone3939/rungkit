@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"rungkit/internal/domain/ladder"
+	"github.com/Piyoone3939/rungkit/internal/domain/ladder"
 )
 
 func TestFormatCanonical(t *testing.T) {

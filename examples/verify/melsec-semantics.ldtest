@@ -1,0 +1,86 @@
+// rungkit の期待値。GX Works3 のシミュレーターで同じ操作をして、値を見比べる。
+// Expected values in rungkit. Do the same in the GX Works3 simulator and compare.
+// 手順 / procedure: docs/verify-melsec.md
+
+scan 10ms
+
+test "V1 RUN直後にONの入力の立上り" {
+  set X0 on
+  run 1
+  expect D10 1
+  run 10
+  expect D10 1
+}
+
+test "V2 カウンタは設定値3で止まる" {
+  set X1 on
+  run 1
+  set X1 off
+  run 1
+  set X1 on
+  run 1
+  set X1 off
+  run 1
+  set X1 on
+  run 1
+  set X1 off
+  run 1
+  set X1 on
+  run 1
+  set X1 off
+  run 1
+  expect C0.CV 3
+  expect C0 on
+}
+
+test "V3 MUL 300*300=90000 は下位24464・上位1" {
+  run 1
+  expect D20 24464
+  expect D21 1
+}
+
+test "V4 DIV -7/2 は商-3・余り-1" {
+  run 1
+  expect D30 -3
+  expect D31 -1
+}
+
+test "V5 32767+1 は -32768" {
+  run 1
+  expect D40 -32768
+}
+
+test "V6 後ろのOUTが勝つ" {
+  set X2 on
+  run 1
+  expect Y0 off
+  set X3 on
+  run 1
+  expect Y0 on
+}
+
+test "V7 1秒タイマーは入力ONから101スキャン目（10msスキャンで1.01秒後）にON" {
+  set X4 on
+  run 100
+  expect T1 off
+  run 1
+  expect T1 on
+}
+
+test "V8 分岐の後ろの枝は分岐前の通電を使う" {
+  set M5 on
+  set M6 on
+  run 1
+  expect M5 off
+  expect M7 on
+}
+
+test "V9 PLSは押すたびに1回" {
+  set X5 on
+  run 5
+  set X5 off
+  run 5
+  set X5 on
+  run 5
+  expect D50 2
+}

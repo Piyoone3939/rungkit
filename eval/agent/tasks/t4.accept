@@ -1,0 +1,11 @@
+test "100で点灯" {
+  set D0 99
+  run 1
+  expect Y2 off
+  set D0 100
+  run 1
+  expect Y2 on
+  set D0 500
+  run 1
+  expect Y2 on
+}

@@ -18,9 +18,10 @@ import (
 	"strings"
 	"time"
 
-	"rungkit/internal/domain/check"
-	"rungkit/internal/domain/ladder"
-	"rungkit/internal/domain/profile"
+	"github.com/Piyoone3939/rungkit/internal/domain/check"
+	"github.com/Piyoone3939/rungkit/internal/domain/i18n"
+	"github.com/Piyoone3939/rungkit/internal/domain/ladder"
+	"github.com/Piyoone3939/rungkit/internal/domain/profile"
 )
 
 const (
@@ -63,7 +64,7 @@ func (e Exporter) Export(p *ladder.Program) (string, error) {
 // Export writes p as PLCopen XML with a POU named name.
 func Export(p *ladder.Program, name string, created time.Time) (string, error) {
 	if ds := check.Program(p); check.HasErrors(ds) {
-		return "", fmt.Errorf("エラーがあるので書き出せません（rungkit check で確認できます）")
+		return "", i18n.Errorf("エラーがあるので書き出せません（rungkit check で確認できます）")
 	}
 	prof, err := profile.Get(p.Profile)
 	if err != nil {
@@ -264,7 +265,7 @@ func (g *gen) timerPreset(op string) (string, error) {
 		return "", err
 	}
 	if o.Class != profile.Const {
-		return "", fmt.Errorf("PLCopen XML への書き出しでは、タイマーの設定値は定数だけに対応しています（%s）", op)
+		return "", i18n.Errorf("PLCopen XML への書き出しでは、タイマーの設定値は定数だけに対応しています（%s）", op)
 	}
 	return fmt.Sprintf("T#%dms", o.Value*100), nil
 }
@@ -400,7 +401,7 @@ func (g *gen) emit(w *xw, n ladder.Node, ins []conn) ([]conn, error) {
 			case profile.Word:
 				return g.instruction(w, v, "MOVE", []string{g.zero()}, v.Operand, false, ins)
 			case profile.TimerInst, profile.CounterInst:
-				return nil, fmt.Errorf("タイマー・カウンタの RST（%s）は PLCopen XML に書き出せません", v.Operand)
+				return nil, i18n.Errorf("タイマー・カウンタの RST（%s）は PLCopen XML に書き出せません", v.Operand)
 			}
 		}
 		return g.contactOrCoil(w, "coil", v, v.Operand, ins, coilAttrs(v))
@@ -580,7 +581,7 @@ var instrBlocks = map[string]string{"MOV": "MOVE", "ADD": "ADD", "SUB": "SUB", "
 func (g *gen) instr(w *xw, v *ladder.Instr, ins []conn) ([]conn, error) {
 	spec, ok := g.prof.Instr(v.Name)
 	if !ok {
-		return nil, fmt.Errorf("命令 %s は使えません", v.Name)
+		return nil, i18n.Errorf("命令 %s は使えません", v.Name)
 	}
 	switch spec.Op {
 	case "MOV":
@@ -592,7 +593,7 @@ func (g *gen) instr(w *xw, v *ladder.Instr, ins []conn) ([]conn, error) {
 	case "DEC":
 		return g.instruction(w, v, "SUB", []string{v.Args[0], g.one()}, v.Args[0], spec.Pulse, ins)
 	}
-	return nil, fmt.Errorf("命令 %s は PLCopen XML に書き出せません", v.Name)
+	return nil, i18n.Errorf("命令 %s は PLCopen XML に書き出せません", v.Name)
 }
 
 func (g *gen) one() string {

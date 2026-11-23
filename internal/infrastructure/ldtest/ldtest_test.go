@@ -5,9 +5,9 @@ import (
 	"strings"
 	"testing"
 
-	"rungkit/internal/application/scenario"
-	"rungkit/internal/domain/profile"
-	"rungkit/internal/infrastructure/ldt"
+	"github.com/Piyoone3939/rungkit/internal/application/scenario"
+	"github.com/Piyoone3939/rungkit/internal/domain/profile"
+	"github.com/Piyoone3939/rungkit/internal/infrastructure/ldt"
 )
 
 func must(t *testing.T, err error) {
@@ -154,5 +154,21 @@ func TestParseDurationAndValue(t *testing.T) {
 		if err != nil || got != want {
 			t.Errorf("%s: %d %v", in, got, err)
 		}
+	}
+}
+
+func TestFriendlyForms(t *testing.T) {
+	rs := run(t, "rung { X0 -> TON(T0, K10) }\nrung { T0 -> MOV(K7, D0) }", `test "forms" {
+  set X0 = on
+  run 0.5s
+  expect D0 == 0
+  wait D0 == 7 within 1.5s
+  expect T0.ET == 1s
+}`)
+	if !rs[0].Pass {
+		t.Fatal(rs[0].Msg)
+	}
+	if ms, _ := profile.ParseDuration("T#1.5s"); ms != 1500 {
+		t.Errorf("T#1.5s = %d", ms)
 	}
 }

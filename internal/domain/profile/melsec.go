@@ -1,11 +1,11 @@
 package profile
 
 import (
-	"fmt"
 	"strconv"
 	"strings"
 
-	"rungkit/internal/domain/ladder"
+	"github.com/Piyoone3939/rungkit/internal/domain/i18n"
+	"github.com/Piyoone3939/rungkit/internal/domain/ladder"
 )
 
 // melsec is the MELSEC iQ-R dialect (X/Y/B/W written in hexadecimal).
@@ -51,22 +51,22 @@ var melsecDevs = []struct {
 
 func (m *melsec) Resolve(op string, _ *ladder.Program) (Operand, error) {
 	if op == "" {
-		return Operand{}, fmt.Errorf("オペランドが空です")
+		return Operand{}, i18n.Errorf("オペランドが空です")
 	}
 	if strings.ToUpper(op) != op {
-		return Operand{}, fmt.Errorf("%s: 三菱のデバイスは大文字で書きます（%s）", op, strings.ToUpper(op))
+		return Operand{}, i18n.Errorf("%s: 三菱のデバイスは大文字で書きます（%s）", op, strings.ToUpper(op))
 	}
 	switch op[0] {
 	case 'K':
 		v, err := strconv.ParseInt(op[1:], 10, 32)
 		if err != nil {
-			return Operand{}, fmt.Errorf("%s: K のあとは10進数です", op)
+			return Operand{}, i18n.Errorf("%s: K のあとは10進数です", op)
 		}
 		return Operand{Class: Const, Value: v}, nil
 	case 'H':
 		v, err := strconv.ParseInt(op[1:], 16, 64)
 		if err != nil || len(op) < 2 {
-			return Operand{}, fmt.Errorf("%s: H のあとは16進数です", op)
+			return Operand{}, i18n.Errorf("%s: H のあとは16進数です", op)
 		}
 		return Operand{Class: Const, Value: v}, nil
 	}
@@ -81,25 +81,25 @@ func (m *melsec) Resolve(op string, _ *ladder.Program) (Operand, error) {
 			base = 16
 		}
 		if num == "" {
-			return Operand{}, fmt.Errorf("%s: デバイス番号がありません", op)
+			return Operand{}, i18n.Errorf("%s: デバイス番号がありません", op)
 		}
 		idx, err := strconv.ParseUint(num, base, 32)
 		if err != nil {
 			if base == 16 {
-				return Operand{}, fmt.Errorf("%s: %s の番号は16進数です", op, d.prefix)
+				return Operand{}, i18n.Errorf("%s: %s の番号は16進数です", op, d.prefix)
 			}
-			return Operand{}, fmt.Errorf("%s: %s の番号は10進数です", op, d.prefix)
+			return Operand{}, i18n.Errorf("%s: %s の番号は10進数です", op, d.prefix)
 		}
 		if hasBit {
 			if d.info.class != Word {
-				return Operand{}, fmt.Errorf("%s: ビット指定（.n）はワードデバイスにだけ使えます", op)
+				return Operand{}, i18n.Errorf("%s: ビット指定（.n）はワードデバイスにだけ使えます", op)
 			}
 			if v, err := strconv.ParseUint(bit, 16, 8); err != nil || v > 15 || len(bit) != 1 {
-				return Operand{}, fmt.Errorf("%s: ビット番号は 0〜F の1桁です", op)
+				return Operand{}, i18n.Errorf("%s: ビット番号は 0〜F の1桁です", op)
 			}
 			return Operand{Class: Bit, Writable: d.info.writable, Device: d.prefix, BitOfWord: true, Index: int64(idx), Hex: d.info.hex}, nil
 		}
 		return Operand{Class: d.info.class, Writable: d.info.writable, Device: d.prefix, Index: int64(idx), Hex: d.info.hex}, nil
 	}
-	return Operand{}, fmt.Errorf("%s: 三菱のデバイスとして読めません", op)
+	return Operand{}, i18n.Errorf("%s: 三菱のデバイスとして読めません", op)
 }

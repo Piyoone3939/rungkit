@@ -10,13 +10,13 @@ import (
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
-	"rungkit/internal/application/workspace"
-	"rungkit/internal/infrastructure/export/melsec"
-	"rungkit/internal/infrastructure/export/st"
-	"rungkit/internal/infrastructure/filestore"
-	"rungkit/internal/infrastructure/jsoncodec"
-	"rungkit/internal/infrastructure/ldt"
-	"rungkit/internal/infrastructure/ldtest"
+	"github.com/Piyoone3939/rungkit/internal/application/workspace"
+	"github.com/Piyoone3939/rungkit/internal/infrastructure/export/melsec"
+	"github.com/Piyoone3939/rungkit/internal/infrastructure/export/st"
+	"github.com/Piyoone3939/rungkit/internal/infrastructure/filestore"
+	"github.com/Piyoone3939/rungkit/internal/infrastructure/jsoncodec"
+	"github.com/Piyoone3939/rungkit/internal/infrastructure/ldt"
+	"github.com/Piyoone3939/rungkit/internal/infrastructure/ldtest"
 )
 
 func connect(t *testing.T) *mcp.ClientSession {

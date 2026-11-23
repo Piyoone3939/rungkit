@@ -1,0 +1,30 @@
+# Builds release binaries when a v* tag is pushed (.github/workflows/release.yml).
+version: 2
+project_name: rungkit
+
+builds:
+  - main: ./cmd/rungkit
+    binary: rungkit
+    env: [CGO_ENABLED=0]
+    goos: [linux, windows, darwin]
+    goarch: [amd64, arm64]
+    ldflags:
+      - -s -w -X github.com/Piyoone3939/rungkit/internal/presentation/cli.Version={{ .Version }}
+
+archives:
+  - formats: [tar.gz]
+    format_overrides:
+      - goos: windows
+        formats: [zip]
+    files:
+      - LICENSE-MIT
+      - LICENSE-APACHE
+      - README.md
+      - README.ja.md
+      - examples/**/*
+
+checksum:
+  name_template: checksums.txt
+
+changelog:
+  use: github

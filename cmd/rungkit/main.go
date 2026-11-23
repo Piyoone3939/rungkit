@@ -5,20 +5,22 @@ package main
 import (
 	"os"
 
-	"rungkit/internal/application/workspace"
-	"rungkit/internal/infrastructure/export/melsec"
-	"rungkit/internal/infrastructure/export/st"
-	"rungkit/internal/infrastructure/filestore"
-	"rungkit/internal/infrastructure/jsoncodec"
-	"rungkit/internal/infrastructure/ldt"
-	"rungkit/internal/infrastructure/ldtest"
-	"rungkit/internal/infrastructure/plcopen"
-	"rungkit/internal/presentation/cli"
+	"github.com/Piyoone3939/rungkit/internal/application/workspace"
+	"github.com/Piyoone3939/rungkit/internal/domain/i18n"
+	"github.com/Piyoone3939/rungkit/internal/infrastructure/export/melsec"
+	"github.com/Piyoone3939/rungkit/internal/infrastructure/export/st"
+	"github.com/Piyoone3939/rungkit/internal/infrastructure/filestore"
+	"github.com/Piyoone3939/rungkit/internal/infrastructure/jsoncodec"
+	"github.com/Piyoone3939/rungkit/internal/infrastructure/ldt"
+	"github.com/Piyoone3939/rungkit/internal/infrastructure/ldtest"
+	"github.com/Piyoone3939/rungkit/internal/infrastructure/locale"
+	"github.com/Piyoone3939/rungkit/internal/infrastructure/plcopen"
+	"github.com/Piyoone3939/rungkit/internal/presentation/cli"
 )
 
 func newWorkspace(opt cli.Options) *workspace.Workspace {
 	return workspace.New(workspace.Deps{
-		Files:     filestore.Store{},
+		Files:     filestore.Store{Root: opt.Root},
 		Notation:  ldt.Notation{},
 		Scenarios: ldtest.Parser{},
 		Exporters: []workspace.Exporter{
@@ -32,5 +34,6 @@ func newWorkspace(opt cli.Options) *workspace.Workspace {
 }
 
 func main() {
+	i18n.SetLanguage(locale.Detect())
 	os.Exit(cli.Run(os.Args[1:], os.Stdout, os.Stderr, newWorkspace))
 }

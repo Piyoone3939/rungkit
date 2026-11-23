@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"rungkit/internal/infrastructure/ldt"
+	"github.com/Piyoone3939/rungkit/internal/infrastructure/ldt"
 )
 
 func session(t *testing.T, src string) *Session {
@@ -213,4 +213,17 @@ func TestAnnotatedTextRoundTrip(t *testing.T) {
 	if body(s, 0) != "X0 & !X1 -> OUT(Y0)" {
 		t.Errorf("%q", body(s, 0))
 	}
+}
+
+func TestLabelMustBeIdentifier(t *testing.T) {
+	s := session(t, selfHold)
+	for _, op := range []Op{
+		{Op: "set_rung", Rung: "r1", Label: str("運転ボタンで起動")},
+		{Op: "add_rung", Text: "X5 -> OUT(Y5)", Label: str("has space")},
+	} {
+		if _, err := s.Apply([]Op{op}); err == nil || !strings.Contains(err.Error(), "comment") {
+			t.Errorf("%+v: got %v", op, err)
+		}
+	}
+	apply(t, s, Op{Op: "set_rung", Rung: "r1", Label: str("Start_1"), Comment: str("運転ボタンで起動")})
 }

@@ -11,9 +11,10 @@ import (
 	"fmt"
 	"strings"
 
-	"rungkit/internal/domain/check"
-	"rungkit/internal/domain/ladder"
-	"rungkit/internal/domain/profile"
+	"github.com/Piyoone3939/rungkit/internal/domain/check"
+	"github.com/Piyoone3939/rungkit/internal/domain/i18n"
+	"github.com/Piyoone3939/rungkit/internal/domain/ladder"
+	"github.com/Piyoone3939/rungkit/internal/domain/profile"
 )
 
 // AlwaysOn is the always-ON special relay used for unconditional outputs.
@@ -23,10 +24,10 @@ const AlwaysOn = "SM400"
 // target another vendor.
 func Export(p *ladder.Program) (string, error) {
 	if !strings.HasPrefix(p.Profile, "melsec") {
-		return "", fmt.Errorf("三菱リスト形式は melsec のプロファイルでだけ書き出せます（今は %s）", p.Profile)
+		return "", i18n.Errorf("三菱リスト形式は melsec のプロファイルでだけ書き出せます（今は %s）", p.Profile)
 	}
 	if ds := check.Program(p); check.HasErrors(ds) {
-		return "", fmt.Errorf("エラーがあるので書き出せません（rungkit check で確認できます）")
+		return "", i18n.Errorf("エラーがあるので書き出せません（rungkit check で確認できます）")
 	}
 	prof, _ := profile.Get(p.Profile)
 	w := &writer{prof: prof}
@@ -196,11 +197,11 @@ func (w *writer) output(e ladder.Element) error {
 	case *ladder.Instr:
 		spec, ok := w.prof.Instr(v.Name)
 		if !ok {
-			return fmt.Errorf("命令 %s は使えません", v.Name)
+			return i18n.Errorf("命令 %s は使えません", v.Name)
 		}
 		w.emit(spec.Mnemonic, v.Args...)
 	default:
-		return fmt.Errorf("出力ではない要素 %T", e)
+		return i18n.Errorf("出力ではない要素 %T", e)
 	}
 	return nil
 }

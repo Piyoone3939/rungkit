@@ -13,8 +13,9 @@ import (
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
-	"rungkit/internal/application/editing"
-	"rungkit/internal/application/workspace"
+	"github.com/Piyoone3939/rungkit/internal/application/editing"
+	"github.com/Piyoone3939/rungkit/internal/application/workspace"
+	"github.com/Piyoone3939/rungkit/internal/domain/i18n"
 )
 
 // Instructions are sent to the client when it connects.
@@ -22,7 +23,8 @@ const Instructions = `rungkit edits PLC ladder programs as text.
 
 Workflow: open_program (or new_program) -> read_program -> edit_program ->
 check_program -> run_scenario -> save_program. Nothing is written to disk
-until save_program.
+until save_program. Paths are relative to the server's working folder; files
+outside it cannot be opened or saved.
 
 Ladder text (.ldt), one rung body:
   (X0 | Y0) & !X1 -> OUT(Y0)
@@ -39,7 +41,8 @@ invalid ladder. Check errors (e.g. writing an input) are reported, not
 refused, so fix them with further edits.
 
 Profiles: melsec-iqr (Mitsubishi iQ-R: X/Y/B/W hexadecimal, D0.3 bit of word,
-K/H constants, T counts 100 ms) and iec (variables declared with set_symbol,
+K/H constants, T counts 100 ms); there, set_symbol takes only a device name and a
+comment and iec (variables declared with set_symbol,
 %IX0.0, T#5s).
 
 Scenarios (run_scenario):
@@ -71,9 +74,13 @@ func New(ws *workspace.Workspace, version string) *mcp.Server {
 	mcp.AddTool(s, &mcp.Tool{Name: "undo", Description: "Revert the last edit_program call."}, h.undo)
 	mcp.AddTool(s, &mcp.Tool{Name: "redo", Description: "Re-apply the last undone edit."}, h.redo)
 	mcp.AddTool(s, &mcp.Tool{Name: "export_program", Description: "Convert the program: melsec (Mitsubishi instruction list), st (IEC Structured Text), plcopen (PLCopen XML TC6 v2.01 Ladder Diagram), json, ldt."}, h.export)
-	mcp.AddTool(s, &mcp.Tool{Name: "run_scenario", Description: "Run test scenarios on the scan simulator (virtual time, deterministic). Give the scenario text, or a path to a .ldtest file. With trace, every scan's watched values are returned."}, h.runScenario)
+	mcp.AddTool(s, &mcp.Tool{Name: "run_scenario", Description: "Run test scenarios on the scan simulator (virtual time, deterministic). Give the scenario text, or a path to a .ldtest file. With trace, watched values are returned for the first scan, every scan where one changed, and the last scan (at most 200 records per test)."}, h.runScenario)
 	return s
 }
+
+// maxTrace caps trace records per test in tool results; only scans where a
+// watched value changed are kept, and the middle is dropped beyond this.
+const maxTrace = 200
 
 type handler struct {
 	mu sync.Mutex
@@ -138,7 +145,7 @@ func (h *handler) summary(prefix string) (*mcp.CallToolResult, any, error) {
 	}
 	path := h.ws.Path()
 	if path == "" {
-		path = "(未保存)"
+		path = i18n.T("(未保存)")
 	}
 	status := fmt.Sprintf("file: %s  unsaved changes: %v  errors: %d  warnings: %d", path, h.ws.Dirty(), errs, warns)
 	return text(strings.TrimSpace(prefix+"\n"+status) + "\n\n" + t), nil, nil
@@ -229,18 +236,18 @@ func (h *handler) export(_ context.Context, _ *mcp.CallToolRequest, in exportIn)
 func (h *handler) runScenario(_ context.Context, _ *mcp.CallToolRequest, in scenarioIn) (*mcp.CallToolResult, any, error) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
-	opt := workspace.ScenarioOptions{Trace: in.Trace, Watch: in.Watch}
+	opt := workspace.ScenarioOptions{Trace: in.Trace, Watch: in.Watch, MaxTrace: maxTrace}
 	var err error
 	var res any
 	switch {
 	case in.Scenario != "" && in.Path != "":
-		return nil, nil, fmt.Errorf("scenario と path はどちらか一方だけ指定します")
+		return nil, nil, i18n.Errorf("scenario と path はどちらか一方だけ指定します")
 	case in.Scenario != "":
 		res, err = h.ws.RunScenario(in.Scenario, opt)
 	case in.Path != "":
 		res, err = h.ws.RunScenarioFile(in.Path, opt)
 	default:
-		return nil, nil, fmt.Errorf("scenario か path が必要です")
+		return nil, nil, i18n.Errorf("scenario か path が必要です")
 	}
 	if err != nil {
 		return nil, nil, err

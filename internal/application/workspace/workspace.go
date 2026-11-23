@@ -9,12 +9,13 @@ import (
 	"sort"
 	"strings"
 
-	"rungkit/internal/application/editing"
-	"rungkit/internal/application/scenario"
-	"rungkit/internal/domain/check"
-	"rungkit/internal/domain/ladder"
-	"rungkit/internal/domain/profile"
-	"rungkit/internal/domain/sim"
+	"github.com/Piyoone3939/rungkit/internal/application/editing"
+	"github.com/Piyoone3939/rungkit/internal/application/scenario"
+	"github.com/Piyoone3939/rungkit/internal/domain/check"
+	"github.com/Piyoone3939/rungkit/internal/domain/i18n"
+	"github.com/Piyoone3939/rungkit/internal/domain/ladder"
+	"github.com/Piyoone3939/rungkit/internal/domain/profile"
+	"github.com/Piyoone3939/rungkit/internal/domain/sim"
 )
 
 // Positions maps rung and element IDs to "line:col" in the source file.
@@ -70,8 +71,15 @@ func New(d Deps) *Workspace {
 	return w
 }
 
-// ErrNoProgram is returned when nothing is open yet.
-var ErrNoProgram = fmt.Errorf("プログラムが開かれていません（open か new_program を先に使います）")
+// ErrNoProgram is returned when nothing is open yet. Its text is translated
+// when shown, so it follows the language chosen at startup.
+var ErrNoProgram error = noProgram{}
+
+type noProgram struct{}
+
+func (noProgram) Error() string {
+	return i18n.T("プログラムが開かれていません（open か new_program を先に使います）")
+}
 
 // Open loads a program file and starts a fresh edit history.
 func (w *Workspace) Open(path string) error {
@@ -126,7 +134,7 @@ func (w *Workspace) Save(path string) (string, error) {
 		path = w.path
 	}
 	if path == "" {
-		return "", fmt.Errorf("保存先のパスが必要です")
+		return "", i18n.Errorf("保存先のパスが必要です")
 	}
 	if err := w.deps.Files.SaveProgram(path, p); err != nil {
 		return "", err
@@ -201,7 +209,7 @@ func (w *Workspace) Export(format string) (string, error) {
 	}
 	e, ok := w.exporters[format]
 	if !ok {
-		return "", fmt.Errorf("書き出し形式 %q はありません（使えるもの: %s）", format, strings.Join(w.Formats(), ", "))
+		return "", i18n.Errorf("書き出し形式 %q はありません（使えるもの: %s）", format, strings.Join(w.Formats(), ", "))
 	}
 	return e.Export(p)
 }
@@ -213,6 +221,9 @@ type ScenarioOptions struct {
 	Trace bool
 	// Watch adds operands to record.
 	Watch []string
+	// MaxTrace caps the trace records per test (0: no cap). The MCP server
+	// sets it so results fit in an agent's context.
+	MaxTrace int
 }
 
 // RunScenario parses scenario text and runs it.
@@ -223,7 +234,7 @@ func (w *Workspace) RunScenario(src string, opt ScenarioOptions) ([]scenario.Res
 	}
 	sc, err := w.deps.Scenarios.ParseScenario(src)
 	if err != nil {
-		return nil, fmt.Errorf("シナリオ: %w", err)
+		return nil, i18n.Errorf("シナリオ: %w", err)
 	}
 	sc.Watch = append(sc.Watch, opt.Watch...)
 	if opt.Trace && len(sc.Watch) == 0 {
@@ -233,10 +244,11 @@ func (w *Workspace) RunScenario(src string, opt ScenarioOptions) ([]scenario.Res
 	if err != nil {
 		return nil, err
 	}
-	if !opt.Trace && len(opt.Watch) == 0 {
-		for i := range res {
+	for i := range res {
+		if !opt.Trace && len(opt.Watch) == 0 {
 			res[i].Watch, res[i].Trace = nil, nil
 		}
+		res[i].Limit(opt.MaxTrace)
 	}
 	return res, nil
 }

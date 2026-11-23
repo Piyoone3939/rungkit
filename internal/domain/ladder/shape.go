@@ -1,5 +1,7 @@
 package ladder
 
+import "github.com/Piyoone3939/rungkit/internal/domain/i18n"
+
 // Normalize returns the canonical form of n:
 //   - a Series directly inside a Series is flattened (same for Parallel),
 //   - containers with one item are replaced by that item,
@@ -82,7 +84,7 @@ func (e *ShapeError) Error() string { return e.Code + ": " + e.Msg }
 func Classify(n Node) (Part, *ShapeError) {
 	switch v := n.(type) {
 	case nil:
-		return Cond, &ShapeError{Code: "E_EMPTY", Msg: "ラングが空です"}
+		return Cond, &ShapeError{Code: "E_EMPTY", Msg: i18n.T("ラングが空です")}
 	case Element:
 		if v.IsOutput() {
 			return Output, nil
@@ -90,7 +92,7 @@ func Classify(n Node) (Part, *ShapeError) {
 		return Cond, nil
 	case *Series:
 		if len(v.Items) < 2 {
-			return Cond, &ShapeError{Code: "E_NOT_NORMALIZED", Msg: "直列の要素が2つ未満です"}
+			return Cond, &ShapeError{Code: "E_NOT_NORMALIZED", Msg: i18n.T("直列の要素が2つ未満です")}
 		}
 		part := Cond
 		for i, it := range v.Items {
@@ -102,7 +104,7 @@ func Classify(n Node) (Part, *ShapeError) {
 				if i != len(v.Items)-1 {
 					return Cond, &ShapeError{
 						Code: "E_OUTPUT_NOT_TERMINAL",
-						Msg:  "出力の右側にまだ要素があります。出力はラングの右端に置きます",
+						Msg:  i18n.T("出力の右側にまだ要素があります。出力はラングの右端に置きます"),
 						Elem: firstID(it),
 					}
 				}
@@ -112,7 +114,7 @@ func Classify(n Node) (Part, *ShapeError) {
 		return part, nil
 	case *Parallel:
 		if len(v.Items) < 2 {
-			return Cond, &ShapeError{Code: "E_NOT_NORMALIZED", Msg: "並列の要素が2つ未満です"}
+			return Cond, &ShapeError{Code: "E_NOT_NORMALIZED", Msg: i18n.T("並列の要素が2つ未満です")}
 		}
 		var outs, conds int
 		for _, it := range v.Items {
@@ -129,7 +131,7 @@ func Classify(n Node) (Part, *ShapeError) {
 		if outs > 0 && conds > 0 {
 			return Cond, &ShapeError{
 				Code: "E_MIXED_PARALLEL",
-				Msg:  "並列の中に、出力で終わる枝と終わらない枝が混ざっています",
+				Msg:  i18n.T("並列の中に、出力で終わる枝と終わらない枝が混ざっています"),
 				Elem: firstID(v),
 			}
 		}
@@ -138,7 +140,7 @@ func Classify(n Node) (Part, *ShapeError) {
 		}
 		return Cond, nil
 	}
-	return Cond, &ShapeError{Code: "E_UNKNOWN_NODE", Msg: "不明なノードです"}
+	return Cond, &ShapeError{Code: "E_UNKNOWN_NODE", Msg: i18n.T("不明なノードです")}
 }
 
 // CheckRung validates the shape of a whole rung body: it must end in outputs.
@@ -148,7 +150,7 @@ func CheckRung(body Node) *ShapeError {
 		return err
 	}
 	if p != Output {
-		return &ShapeError{Code: "E_NO_OUTPUT", Msg: "ラングに出力（コイルや命令）がありません", Elem: firstID(body)}
+		return &ShapeError{Code: "E_NO_OUTPUT", Msg: i18n.T("ラングに出力（コイルや命令）がありません"), Elem: firstID(body)}
 	}
 	return nil
 }

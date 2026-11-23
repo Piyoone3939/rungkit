@@ -1,4 +1,4 @@
-module rungkit
+module github.com/Piyoone3939/rungkit
 
 go 1.27.3
 

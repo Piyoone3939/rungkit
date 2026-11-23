@@ -7,8 +7,9 @@ import (
 	"strings"
 	"text/tabwriter"
 
-	"rungkit/internal/application/scenario"
-	"rungkit/internal/application/workspace"
+	"github.com/Piyoone3939/rungkit/internal/application/scenario"
+	"github.com/Piyoone3939/rungkit/internal/application/workspace"
+	"github.com/Piyoone3939/rungkit/internal/domain/i18n"
 )
 
 func runTests(ws *workspace.Workspace, path string, trace, asJSON bool, stdout, stderr io.Writer) int {
@@ -30,7 +31,7 @@ func runTests(ws *workspace.Workspace, path string, trace, asJSON bool, stdout, 
 		format := ws.ValueFormatter()
 		for _, r := range results {
 			if r.Pass {
-				fmt.Fprintf(stdout, "PASS  %s  (%d スキャン)\n", r.Name, r.Scans)
+				fmt.Fprintln(stdout, i18n.T("PASS  %s  (%d スキャン)", r.Name, r.Scans))
 			} else {
 				fmt.Fprintf(stdout, "FAIL  %s\n      %s:%d: %s\n", r.Name, path, r.Line, r.Msg)
 			}
@@ -38,7 +39,7 @@ func runTests(ws *workspace.Workspace, path string, trace, asJSON bool, stdout, 
 				printTrace(stdout, format, r)
 			}
 		}
-		fmt.Fprintf(stdout, "\n%d 件中 %d 件成功\n", len(results), len(results)-failed)
+		fmt.Fprintln(stdout, "\n"+i18n.T("%d 件中 %d 件成功", len(results), len(results)-failed))
 	}
 	if failed > 0 {
 		return 1
