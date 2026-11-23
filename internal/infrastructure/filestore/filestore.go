@@ -1,5 +1,6 @@
 // Package filestore loads and saves programs on the local file system. The
-// file extension picks the format: .json uses JSON, anything else .ldt text.
+// file extension picks the format: .json uses JSON, .xml PLCopen XML,
+// anything else .ldt text.
 // The path "-" reads from standard input.
 package filestore
 
@@ -9,11 +10,13 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"rungkit/internal/application/workspace"
 	"rungkit/internal/domain/ladder"
 	"rungkit/internal/infrastructure/jsoncodec"
 	"rungkit/internal/infrastructure/ldt"
+	"rungkit/internal/infrastructure/plcopen"
 )
 
 // Store implements workspace.Files.
@@ -33,16 +36,23 @@ func (s Store) read(path string) ([]byte, error) {
 	return os.ReadFile(path)
 }
 
-func isJSON(path string) bool { return strings.EqualFold(filepath.Ext(path), ".json") }
+func ext(path string) string { return strings.ToLower(filepath.Ext(path)) }
 
-// LoadProgram reads a .ldt or .json program.
+// LoadProgram reads a .ldt, .json or PLCopen .xml program.
 func (s Store) LoadProgram(path string) (*ladder.Program, workspace.Positions, error) {
 	data, err := s.read(path)
 	if err != nil {
 		return nil, nil, err
 	}
-	if isJSON(path) {
+	switch ext(path) {
+	case ".json":
 		p, err := jsoncodec.Unmarshal(data)
+		if err != nil {
+			return nil, nil, fmt.Errorf("%s: %w", path, err)
+		}
+		return p, nil, nil
+	case ".xml":
+		p, err := plcopen.Import(data)
 		if err != nil {
 			return nil, nil, fmt.Errorf("%s: %w", path, err)
 		}
@@ -62,11 +72,11 @@ func (s Store) LoadProgram(path string) (*ladder.Program, workspace.Positions, e
 	return p, pos, nil
 }
 
-// SaveProgram writes a .ldt or .json program. Other extensions are refused so
+// SaveProgram writes a .ldt, .json or PLCopen .xml program. Other extensions are refused so
 // a mistyped path cannot overwrite an unrelated file.
 func (s Store) SaveProgram(path string, p *ladder.Program) error {
 	var out []byte
-	switch strings.ToLower(filepath.Ext(path)) {
+	switch ext(path) {
 	case ".ldt":
 		text, err := ldt.Format(p)
 		if err != nil {
@@ -79,8 +89,15 @@ func (s Store) SaveProgram(path string, p *ladder.Program) error {
 			return err
 		}
 		out = append(b, '\n')
+	case ".xml":
+		name := strings.TrimSuffix(filepath.Base(path), filepath.Ext(path))
+		text, err := plcopen.Export(p, name, time.Now())
+		if err != nil {
+			return err
+		}
+		out = []byte(text)
 	default:
-		return fmt.Errorf("保存先は .ldt か .json のファイルにします（%s）", path)
+		return fmt.Errorf("保存先は .ldt / .json / .xml（PLCopen）のファイルにします（%s）", path)
 	}
 	return os.WriteFile(path, out, 0o644)
 }

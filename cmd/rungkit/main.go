@@ -12,6 +12,7 @@ import (
 	"rungkit/internal/infrastructure/jsoncodec"
 	"rungkit/internal/infrastructure/ldt"
 	"rungkit/internal/infrastructure/ldtest"
+	"rungkit/internal/infrastructure/plcopen"
 	"rungkit/internal/presentation/cli"
 )
 
@@ -22,9 +23,10 @@ func newWorkspace(opt cli.Options) *workspace.Workspace {
 		Scenarios: ldtest.Parser{},
 		Exporters: []workspace.Exporter{
 			melsec.Exporter{},
-			st.Exporter{ProgramName: opt.STProgramName},
+			st.Exporter{ProgramName: opt.ProgramName},
 			jsoncodec.Exporter{},
 			ldt.Exporter{},
+			plcopen.Exporter{ProgramName: opt.ProgramName},
 		},
 	})
 }

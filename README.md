@@ -22,7 +22,7 @@ claude mcp add rungkit -- /path/to/rungkit mcp
 | `undo` / `redo` | 元に戻す / やり直す |
 | `check_program` | エラーと警告（コード、ラングID、要素ID付き） |
 | `run_scenario` | シナリオをシミュレーターで実行（テキストか `.ldtest` のパス。`trace` でスキャンごとの記録） |
-| `export_program` | `melsec` / `st` / `json` / `ldt` に書き出し |
+| `export_program` | `melsec` / `st` / `plcopen` / `json` / `ldt` に書き出し |
 
 編集コマンド（`edit_program` の `ops`）:
 
@@ -94,6 +94,22 @@ go run ./cmd/rungkit export -to json examples/conveyor.ldt
 
 `check` はエラーに番号（`E_READ_ONLY` など）と行・列を付けます。AIが1件ずつ直せるようにするためです。
 
+## PLCopen XML
+
+PLCopen XML（TC6 v2.01）のラダー図（LD）を読み書きできます。Beremiz / OpenPLC Editor / CODESYS などとやり取りするための形式です。
+
+```sh
+go run ./cmd/rungkit export -to plcopen -name Conveyor examples/conveyor.ldt > conveyor.xml
+go run ./cmd/rungkit check conveyor.xml          # .xml はそのまま開ける（fmt / test / mcp も同じ）
+```
+
+- 書き出したXMLは公式スキーマ（tc6_xml_v201.xsd）で検証済みです
+- 対応する要素: 接点（a/b/立上り/立下り）、コイル（SET/RST/パルス）、TON/TOF/TP/CTU、比較（EQ/NE/LT/LE/GT/GE）、MOVE/ADD/SUB/MUL/DIV、パルス命令（R_TRIG 経由）、ラングのコメント
+- 読み込みでは配線のグラフを直列・並列の木に戻します。コイルの直列つなぎや、配線のOR（1つの入力に複数の線）も読めます。直列・並列で表せない回路（ブリッジ回路）は `E_NON_SERIES_PARALLEL` で断ります
+- PLCopen はIECの形式なので、三菱プロファイルは `K10` → `10`、`H1F` → `16#1F`、タイマー `K50` → `T#5000ms` のように書き出し、プロファイル名を `addData` に残して、読み込むときに三菱の書き方へ戻します
+- 往復で変わるもの: `INC`/`DEC` は `ADD`/`SUB`（同じ動き）、ワードの `RST` は `MOV(K0, …)`、1つのラングにある独立した回路は別々のラングになります
+- 書き出せないもの: タイマー・カウンタの `RST`、三菱タイマーの設定値にワードデバイスを使うもの
+
 ## シミュレーター（.ldtest）
 
 プログラムを仮想時間でスキャンごとに動かし、シナリオどおりに動くかを確かめます。
@@ -163,6 +179,7 @@ go run ./cmd/rungkit test -json examples/conveyor.ldt examples/conveyor.ldtest  
 | | [ldtest](internal/infrastructure/ldtest/) | `.ldtest` シナリオの読み込み |
 | | [jsoncodec](internal/infrastructure/jsoncodec/) | JSON |
 | | [export/melsec](internal/infrastructure/export/melsec/) / [export/st](internal/infrastructure/export/st/) | 三菱リスト形式 / Structured Text |
+| | [plcopen](internal/infrastructure/plcopen/) | PLCopen XML の読み書き |
 | | [filestore](internal/infrastructure/filestore/) | ファイルの読み書き |
 | プレゼンテーション | [cli](internal/presentation/cli/) / [mcpserver](internal/presentation/mcpserver/) | コマンドライン / MCPサーバー |
 | 組み立て | [cmd/rungkit](cmd/rungkit/) | アダプタをつないで起動するだけ |

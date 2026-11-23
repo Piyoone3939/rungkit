@@ -17,17 +17,17 @@ const usage = `rungkit — ladder programs as text
 usage:
   rungkit fmt [-w] FILE                         canonical .ldt (-w rewrites the file)
   rungkit check FILE                            errors and warnings
-  rungkit export -to FORMAT [-name N] FILE      melsec | st | json | ldt
+  rungkit export -to FORMAT [-name N] FILE      melsec | st | plcopen | json | ldt
   rungkit test [-trace] [-json] FILE SCENARIO   run a .ldtest scenario
   rungkit mcp [FILE]                            MCP server on stdio
 
-FILE is .ldt or .json ("-" reads .ldt from stdin).
+FILE is .ldt, .json or PLCopen .xml ("-" reads .ldt from stdin).
 `
 
 // Options are settings that change how the workspace is assembled.
 type Options struct {
-	// STProgramName is the PROGRAM name used by the st exporter.
-	STProgramName string
+	// ProgramName is the PROGRAM / POU name used by the st and plcopen exporters.
+	ProgramName string
 }
 
 // Factory builds a workspace (the composition root supplies it).
@@ -47,13 +47,13 @@ func Run(args []string, stdout, stderr io.Writer, newWorkspace Factory) int {
 	fs.SetOutput(stderr)
 	write := fs.Bool("w", false, "rewrite the file (fmt)")
 	to := fs.String("to", "", "export format")
-	name := fs.String("name", "Main", "PROGRAM name (export -to st)")
+	name := fs.String("name", "Main", "PROGRAM / POU name (export -to st, plcopen)")
 	trace := fs.Bool("trace", false, "print the scan trace (test)")
 	asJSON := fs.Bool("json", false, "print results as JSON (test)")
 	if err := fs.Parse(rest); err != nil {
 		return 2
 	}
-	ws := newWorkspace(Options{STProgramName: *name})
+	ws := newWorkspace(Options{ProgramName: *name})
 
 	nargs := map[string][2]int{"fmt": {1, 1}, "check": {1, 1}, "export": {1, 1}, "test": {2, 2}, "mcp": {0, 1}}
 	n, ok := nargs[cmd]

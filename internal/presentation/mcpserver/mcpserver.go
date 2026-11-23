@@ -62,15 +62,15 @@ func New(ws *workspace.Workspace, version string) *mcp.Server {
 	h := &handler{ws: ws}
 	s := mcp.NewServer(&mcp.Implementation{Name: "rungkit", Version: version}, &mcp.ServerOptions{Instructions: Instructions})
 
-	mcp.AddTool(s, &mcp.Tool{Name: "open_program", Description: "Open a .ldt or .json ladder program file. Starts a new undo history."}, h.open)
+	mcp.AddTool(s, &mcp.Tool{Name: "open_program", Description: "Open a ladder program: .ldt, .json or PLCopen XML (.xml, Ladder Diagram). Starts a new undo history."}, h.open)
 	mcp.AddTool(s, &mcp.Tool{Name: "new_program", Description: "Start an empty program for a profile (melsec-iqr or iec)."}, h.newProgram)
-	mcp.AddTool(s, &mcp.Tool{Name: "save_program", Description: "Save the program as .ldt or .json. Without path, saves to the file it was opened from."}, h.save)
+	mcp.AddTool(s, &mcp.Tool{Name: "save_program", Description: "Save the program as .ldt, .json or PLCopen XML (.xml). Without path, saves to the file it was opened from."}, h.save)
 	mcp.AddTool(s, &mcp.Tool{Name: "read_program", Description: "Show the whole program as ladder text with rung IDs (// r1) and element IDs (X0@e3), plus the number of errors and warnings."}, h.read)
 	mcp.AddTool(s, &mcp.Tool{Name: "check_program", Description: "Validate the program. Returns diagnostics with codes (E_READ_ONLY, W_DOUBLE_COIL, ...), rung and element IDs."}, h.check)
 	mcp.AddTool(s, &mcp.Tool{Name: "edit_program", Description: "Apply edit commands atomically (all or nothing, one undo step). Commands:\n" + editing.Ops + "\nReturns the changed rungs with IDs, new element IDs and diagnostics."}, h.edit)
 	mcp.AddTool(s, &mcp.Tool{Name: "undo", Description: "Revert the last edit_program call."}, h.undo)
 	mcp.AddTool(s, &mcp.Tool{Name: "redo", Description: "Re-apply the last undone edit."}, h.redo)
-	mcp.AddTool(s, &mcp.Tool{Name: "export_program", Description: "Convert the program: melsec (Mitsubishi instruction list), st (IEC Structured Text), json, ldt."}, h.export)
+	mcp.AddTool(s, &mcp.Tool{Name: "export_program", Description: "Convert the program: melsec (Mitsubishi instruction list), st (IEC Structured Text), plcopen (PLCopen XML TC6 v2.01 Ladder Diagram), json, ldt."}, h.export)
 	mcp.AddTool(s, &mcp.Tool{Name: "run_scenario", Description: "Run test scenarios on the scan simulator (virtual time, deterministic). Give the scenario text, or a path to a .ldtest file. With trace, every scan's watched values are returned."}, h.runScenario)
 	return s
 }
@@ -83,11 +83,11 @@ type handler struct {
 type none struct{}
 
 type pathIn struct {
-	Path string `json:"path" jsonschema:"file path of a .ldt or .json program"`
+	Path string `json:"path" jsonschema:"file path of a .ldt, .json or PLCopen .xml program"`
 }
 
 type savePathIn struct {
-	Path string `json:"path,omitempty" jsonschema:"where to save (.ldt or .json); empty = the opened file"`
+	Path string `json:"path,omitempty" jsonschema:"where to save (.ldt, .json or .xml); empty = the opened file"`
 }
 
 type profileIn struct {
@@ -99,7 +99,7 @@ type editIn struct {
 }
 
 type exportIn struct {
-	Format string `json:"format" jsonschema:"melsec, st, json or ldt"`
+	Format string `json:"format" jsonschema:"melsec, st, plcopen, json or ldt"`
 }
 
 type scenarioIn struct {
