@@ -72,3 +72,15 @@ func TestCounterResetUnsupported(t *testing.T) {
 		t.Fatal("want error")
 	}
 }
+
+func TestMelsecMulDivWriteTheNextWord(t *testing.T) {
+	got := body(t, "rung { X0 -> { MUL(K300, K300, D20)  DIV(K-7, K2, D30) } }")
+	for _, want := range []string{
+		"_mul_e2 := INT_TO_DINT(300) * INT_TO_DINT(300); D20 := WORD_TO_INT(DINT_TO_WORD(_mul_e2)); D21 := WORD_TO_INT(DWORD_TO_WORD(SHR(DINT_TO_DWORD(_mul_e2), 16)));",
+		"D30 := -7 / 2; D31 := -7 MOD 2;",
+	} {
+		if !strings.Contains(got, want) {
+			t.Errorf("missing %q in\n%s", want, got)
+		}
+	}
+}

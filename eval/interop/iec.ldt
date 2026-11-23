@@ -1,0 +1,11 @@
+profile iec
+sym Start : BOOL @ %IX0.0 "起動"
+sym Stop : BOOL @ %IX0.1
+sym Motor : BOOL @ %QX0.0
+sym Delay : TON
+sym Cnt : CTU
+sym N : INT
+rung "始動" {
+  (Start | Motor) & !Stop -> { OUT(Motor)  TON(Delay, T#2s) }
+}
+rung { Delay & [N < 100] -> { ADDP(N, 1, N)  CTU(Cnt, 5)  PLS(Motor) } }

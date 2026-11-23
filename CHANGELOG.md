@@ -18,6 +18,9 @@ Formats (`.ldt`, JSON, `.ldtest`, MCP tools) may change while the version is 0.x
 - Warning `W_SYMBOL_TYPE_IGNORED` for IEC types or addresses on melsec symbols
 - Agent evaluation harness in `eval/agent`
 - Rung labels are checked (`E_BAD_LABEL`); saving refuses `.ldt` text that would not parse back
+- Verified with real tools in Docker (`eval/interop`): ST compiles with matiec; PLCopen XML builds in Beremiz
+- ST: MELSEC `MUL` writes the 32-bit product to D(n), D(n+1); `DIV` writes the remainder to D(n+1)
+- PLCopen XML: wire paths, a default task configuration, and `T0.Q` for contacts on timers and counters
 
 ---
 
@@ -39,3 +42,6 @@ Formats (`.ldt`, JSON, `.ldtest`, MCP tools) may change while the version is 0.x
 - 三菱プロファイルの記号にIECの型・アドレスを書いたら警告 `W_SYMBOL_TYPE_IGNORED`
 - AIの評価用の仕組み（`eval/agent`）
 - ラングのラベルを検査（`E_BAD_LABEL`）。読み戻せない `.ldt` は保存しない
+- 実際のツールで確認（`eval/interop`、Docker）: ST は matiec でコンパイルでき、PLCopen XML は Beremiz でビルドできる
+- ST: 三菱の `MUL` は32ビットの積を D(n)・D(n+1) に、`DIV` は余りを D(n+1) に書く
+- PLCopen XML: 配線の座標、既定のタスク設定、タイマー・カウンタの接点を `T0.Q` で書く

@@ -313,7 +313,26 @@ func (g *gen) output(e ladder.Element, cond string) error {
 		switch spec.Op {
 		case "MOV":
 			stmt = fmt.Sprintf("%s := %s;", args[1], args[0])
-		case "ADD", "SUB", "MUL", "DIV":
+		case "MUL", "DIV":
+			if g.melsec {
+				// MELSEC writes a second word: MUL the high word of the
+				// 32-bit product, DIV the remainder, into the next device.
+				next, err := g.nextDevice(v.Args[2])
+				if err != nil {
+					return err
+				}
+				if spec.Op == "MUL" {
+					tmp := "_mul_" + v.ID
+					g.declare(tmp, "DINT")
+					stmt = fmt.Sprintf("%s := INT_TO_DINT(%s) * INT_TO_DINT(%s); %s := WORD_TO_INT(DINT_TO_WORD(%s)); %s := WORD_TO_INT(DWORD_TO_WORD(SHR(DINT_TO_DWORD(%s), 16)));",
+						tmp, args[0], args[1], args[2], tmp, next, tmp)
+				} else {
+					stmt = fmt.Sprintf("%s := %s / %s; %s := %s MOD %s;", args[2], args[0], args[1], next, args[0], args[1])
+				}
+				break
+			}
+			fallthrough
+		case "ADD", "SUB":
 			sym := map[string]string{"ADD": "+", "SUB": "-", "MUL": "*", "DIV": "/"}[spec.Op]
 			stmt = fmt.Sprintf("%s := %s %s %s;", args[2], args[0], sym, args[1])
 		case "INC":
@@ -371,4 +390,20 @@ func (e Exporter) Export(p *ladder.Program) (string, error) {
 		name = "Main"
 	}
 	return Export(p, name)
+}
+
+// nextDevice returns the device after op (D20 -> D21, W1F -> W20), declared
+// as a word.
+func (g *gen) nextDevice(op string) (string, error) {
+	o, err := g.prof.Resolve(op, g.p)
+	if err != nil {
+		return "", err
+	}
+	base := 10
+	if o.Hex {
+		base = 16
+	}
+	next := o.Device + strings.ToUpper(strconv.FormatInt(o.Index+1, base))
+	g.declare(next, "INT")
+	return next, nil
 }

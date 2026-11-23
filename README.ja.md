@@ -117,7 +117,8 @@ go run ./cmd/rungkit export -to plcopen -name Conveyor examples/conveyor.ldt > c
 go run ./cmd/rungkit check conveyor.xml          # .xml はそのまま開ける（fmt / test / mcp も同じ）
 ```
 
-- 書き出したXMLは公式スキーマ（tc6_xml_v201.xsd）で検証済みです
+- 書き出したXMLは公式スキーマ（tc6_xml_v201.xsd）で有効で、Beremiz でそのままビルドできます（[確認の手順と結果](eval/interop/README.md)）。既定のタスク（10ms）も書き出します
+- Beremiz ではタイマー・カウンタの呼び出しがコイルの後に回るため、タイマーを読むラングは三菱より1スキャン遅れます。ラング順どおりの動きが必要なら ST 出力を使ってください
 - 対応する要素: 接点（a/b/立上り/立下り）、コイル（SET/RST/パルス）、TON/TOF/TP/CTU、比較（EQ/NE/LT/LE/GT/GE）、MOVE/ADD/SUB/MUL/DIV、パルス命令（R_TRIG 経由）、ラングのコメント
 - 読み込みでは配線のグラフを直列・並列の木に戻します。コイルの直列つなぎや、配線のOR（1つの入力に複数の線）も読めます。直列・並列で表せない回路（ブリッジ回路）は `E_NON_SERIES_PARALLEL` で断ります
 - PLCopen はIECの形式なので、三菱プロファイルは `K10` → `10`、`H1F` → `16#1F`、タイマー `K50` → `T#5000ms` のように書き出し、プロファイル名を `addData` に残して、読み込むときに三菱の書き方へ戻します

@@ -117,7 +117,8 @@ rungkit export -to plcopen -name Conveyor examples/conveyor.ldt > conveyor.xml
 rungkit check conveyor.xml          # .xml opens directly (fmt / test / mcp too)
 ```
 
-- Exported files validate against the official schema (tc6_xml_v201.xsd)
+- Exports validate against the official schema (tc6_xml_v201.xsd) and build as is in Beremiz ([procedure and results](eval/interop/README.md)); a default 10 ms task is included
+- Beremiz runs timer and counter calls after the coils, so a rung reading a timer sees it one scan later than on MELSEC; use the ST export for rung-by-rung semantics
 - Supported: contacts (NO/NC/rising/falling), coils (set/reset/pulse), TON/TOF/TP/CTU, comparisons (EQ/NE/LT/LE/GT/GE), MOVE/ADD/SUB/MUL/DIV, pulse instructions (through R_TRIG), rung comments
 - Import turns the wiring graph back into a series-parallel tree; chained coils and wired ORs work. Circuits that are not series-parallel (bridges) are refused with `E_NON_SERIES_PARALLEL`
 - PLCopen is IEC, so melsec programs are written with IEC spellings (`K10` → `10`, `H1F` → `16#1F`, timer `K50` → `T#5000ms`) and the profile is kept in `addData` to restore MELSEC spellings on import

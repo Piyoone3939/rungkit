@@ -110,6 +110,8 @@ cmd/rungkit (組み立て)
 - タイマー・カウンタの Q から先につながる回路は、インスタンスを接点として読む別の枝に直す（タイマーが先に実行されるので同じ値になる）
 - 三菱プロファイルは IEC の書き方に直して書き出し、`addData` にプロファイル名を残す。読み込みでこれを見つけたら、定数とタイマー設定値を三菱の書き方に戻す
 - 公式スキーマ（Beremiz 同梱の tc6_xml_v201.xsd）で書き出しを検証した。テストではスキーマ検証はしていない（Go標準ライブラリにXSD検証がないため）
+- Beremiz のビルドを通すために: すべての配線に経路の座標（`position`）を書く（スキーマでは省略できるが Beremiz は必須として扱う）、既定のタスク設定を書く、タイマー・カウンタの接点は `T0.Q` と書く
+- Beremiz はコイルを位置順に、タイマーなどのブロックをその後に実行する。`executionOrderId` はブロックにしか効かないので、ラング順どおりにはできない（[eval/interop](../eval/interop/README.md)）
 
 ## 次にやること
 
@@ -118,6 +120,6 @@ cmd/rungkit (組み立て)
 1. GX Works3 の取り込み形式の確認と対応（手順: [verify-melsec.md](verify-melsec.md)）
 2. 三菱 FX5 プロファイル（X/Y が8進数）
 3. ブラウザの画面（ラダー表示と編集、WebAssembly）
-4. Beremiz / OpenPLC Editor / matiec の実物で PLCopen XML と ST を確かめる
+4. OpenPLC Editor v4 / CODESYS の実物で PLCopen XML を確かめる（Beremiz と matiec は確認済み: [eval/interop](../eval/interop/README.md)）
 5. 安全条件の形式検証（ESBMC-PLC などとの連携）
 6. ラダー図の画像・ASCII表示（`render`）

@@ -70,7 +70,7 @@ func Export(p *ladder.Program, name string, created time.Time) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	g := &gen{p: p, prof: prof, melsec: strings.HasPrefix(p.Profile, "melsec"), vars: map[string]string{}}
+	g := &gen{p: p, prof: prof, melsec: strings.HasPrefix(p.Profile, "melsec"), vars: map[string]string{}, outAt: map[conn][2]int{}}
 
 	// Body first: it decides which helper instances need declaring.
 	body := &xw{depth: 5}
@@ -114,7 +114,16 @@ func Export(p *ladder.Program, name string, created time.Time) (string, error) {
 	w.close("pous")
 	w.close("types")
 	w.open("instances")
-	w.empty("configurations")
+	// A default task so Beremiz / OpenPLC can build the project as is.
+	w.open("configurations")
+	w.open("configuration", "name", "config")
+	w.open("resource", "name", "resource1")
+	w.open("task", "name", "task0", "priority", "0", "interval", "T#10ms")
+	w.empty("pouInstance", "name", "instance0", "typeName", name)
+	w.close("task")
+	w.close("resource")
+	w.close("configuration")
+	w.close("configurations")
 	w.close("instances")
 	w.open("addData")
 	w.open("data", "name", profileData, "handleUnknown", "discard")
@@ -133,6 +142,9 @@ type gen struct {
 	vars   map[string]string // name -> type, for the melsec profile and helpers
 	cells  map[ladder.Element][2]int
 	top    int // y of the rung being written
+	// outAt holds the absolute position of every output point written so
+	// far; wires repeat it, because Beremiz needs each wire's path.
+	outAt map[conn][2]int
 }
 
 func (g *gen) id() int {
@@ -322,6 +334,7 @@ func (g *gen) rung(w *xw, r *ladder.Rung, top int) (int, error) {
 	w.empty("relPosition", "x", "4", "y", itoa(elemH/2))
 	w.close("connectionPointOut")
 	w.close("leftPowerRail")
+	g.outAt[conn{ref: left}] = [2]int{24, top + elemH/2}
 
 	outs, err := g.emit(w, r.Body, []conn{{ref: left}})
 	if err != nil {
@@ -329,38 +342,51 @@ func (g *gen) rung(w *xw, r *ladder.Rung, top int) (int, error) {
 	}
 	right := g.id()
 	w.open("rightPowerRail", "localId", itoa(right), "height", itoa(height), "width", "4")
-	w.empty("position", "x", itoa(colW*(cols+1)+20), "y", itoa(top))
+	rx := colW*(cols+1) + 20
+	w.empty("position", "x", itoa(rx), "y", itoa(top))
 	for _, c := range outs {
-		w.open("connectionPointIn")
-		w.empty("relPosition", "x", "0", "y", itoa(elemH/2))
-		g.connection(w, c)
-		w.close("connectionPointIn")
+		g.pointIn(w, []conn{c}, rx, top, 0, elemH/2)
 	}
 	w.close("rightPowerRail")
 	return top + height + rungGap, nil
 }
 
-func (g *gen) connection(w *xw, c conn) {
+// connection writes a wire from c to the input point at (x, y). The path
+// runs from the input back to the source's output point.
+func (g *gen) connection(w *xw, c conn, x, y int) {
+	attrs := []string{"refLocalId", itoa(c.ref)}
 	if c.param != "" {
-		w.empty("connection", "refLocalId", itoa(c.ref), "formalParameter", c.param)
-	} else {
-		w.empty("connection", "refLocalId", itoa(c.ref))
+		attrs = append(attrs, "formalParameter", c.param)
 	}
+	src, ok := g.outAt[c]
+	if !ok {
+		w.empty("connection", attrs...)
+		return
+	}
+	w.open("connection", attrs...)
+	w.empty("position", "x", itoa(x), "y", itoa(y))
+	w.empty("position", "x", itoa(src[0]), "y", itoa(src[1]))
+	w.close("connection")
 }
 
-func (g *gen) pointIn(w *xw, ins []conn, x int) {
+// pointIn writes an input point at (rx, ry) relative to an element at
+// (ex, ey), wired to ins.
+func (g *gen) pointIn(w *xw, ins []conn, ex, ey, rx, ry int) {
 	w.open("connectionPointIn")
-	w.empty("relPosition", "x", itoa(x), "y", itoa(elemH/2))
+	w.empty("relPosition", "x", itoa(rx), "y", itoa(ry))
 	for _, c := range ins {
-		g.connection(w, c)
+		g.connection(w, c, ex+rx, ey+ry)
 	}
 	w.close("connectionPointIn")
 }
 
-func (g *gen) pointOut(w *xw, x int) {
+// pointOut writes the output point c at (rx, ry) relative to an element at
+// (ex, ey) and remembers where it is.
+func (g *gen) pointOut(w *xw, c conn, ex, ey, rx, ry int) {
 	w.open("connectionPointOut")
-	w.empty("relPosition", "x", itoa(x), "y", itoa(elemH/2))
+	w.empty("relPosition", "x", itoa(rx), "y", itoa(ry))
 	w.close("connectionPointOut")
+	g.outAt[c] = [2]int{ex + rx, ey + ry}
 }
 
 // pos returns the absolute position of an element's cell.
@@ -476,12 +502,18 @@ func (g *gen) contactOrCoil(w *xw, tag string, e ladder.Element, op string, ins 
 	if err != nil {
 		return nil, err
 	}
+	if tag == "contact" {
+		// A contact on a timer or counter reads its output Q in IEC.
+		if o, err := g.prof.Resolve(op, g.p); err == nil && (o.Class == profile.TimerInst || o.Class == profile.CounterInst) {
+			v += ".Q"
+		}
+	}
 	id := g.id()
 	x, y := g.pos(e)
 	w.open(tag, append([]string{"localId", itoa(id)}, append(attrs, "height", itoa(elemH), "width", itoa(elemW))...)...)
 	w.empty("position", "x", itoa(x), "y", itoa(y))
-	g.pointIn(w, ins, 0)
-	g.pointOut(w, elemW)
+	g.pointIn(w, ins, x, y, 0, elemH/2)
+	g.pointOut(w, conn{ref: id}, x, y, elemW, elemH/2)
 	w.text("variable", v)
 	w.close(tag)
 	return []conn{{ref: id}}, nil
@@ -492,7 +524,7 @@ func (g *gen) inVariable(w *xw, expr string, x, y int) int {
 	id := g.id()
 	w.open("inVariable", "localId", itoa(id), "height", itoa(elemH), "width", "60", "negated", "false")
 	w.empty("position", "x", itoa(x), "y", itoa(y))
-	g.pointOut(w, 60)
+	g.pointOut(w, conn{ref: id}, x, y, 60, elemH/2)
 	w.text("expression", expr)
 	w.close("inVariable")
 	return id
@@ -502,7 +534,7 @@ func (g *gen) outVariable(w *xw, expr string, from conn, x, y int) {
 	id := g.id()
 	w.open("outVariable", "localId", itoa(id), "height", itoa(elemH), "width", "60", "negated", "false")
 	w.empty("position", "x", itoa(x), "y", itoa(y))
-	g.pointIn(w, []conn{from}, 0)
+	g.pointIn(w, []conn{from}, x, y, 0, elemH/2)
 	w.text("expression", expr)
 	w.close("outVariable")
 }
@@ -523,17 +555,17 @@ func (g *gen) block(w *xw, id int, typeName, instance string, x, y int, inputs [
 	w.open("block", append(attrs, "height", itoa(h), "width", "60")...)
 	w.empty("position", "x", itoa(x), "y", itoa(y))
 	w.open("inputVariables")
-	for _, in := range inputs {
+	for k, in := range inputs {
 		w.open("variable", "formalParameter", in.param)
-		g.pointIn(w, in.ins, 0)
+		g.pointIn(w, in.ins, x, y, 0, 20*(k+1))
 		w.close("variable")
 	}
 	w.close("inputVariables")
 	w.empty("inOutVariables")
 	w.open("outputVariables")
-	for _, out := range outputs {
+	for k, out := range outputs {
 		w.open("variable", "formalParameter", out)
-		g.pointOut(w, 60)
+		g.pointOut(w, conn{ref: id, param: out}, x, y, 60, 20*(k+1))
 		w.close("variable")
 	}
 	w.close("outputVariables")

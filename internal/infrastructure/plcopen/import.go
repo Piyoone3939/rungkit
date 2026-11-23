@@ -412,7 +412,7 @@ func (im *importer) body(elems []xElem) error {
 				comments = append(comments, comment{e.Position.Y, t})
 			}
 		case "contact":
-			c := &ladder.Contact{Mode: ladder.NO, Operand: strings.TrimSpace(e.Variable)}
+			c := &ladder.Contact{Mode: ladder.NO, Operand: im.contactOperand(e.Variable)}
 			switch {
 			case e.Negated:
 				c.Mode = ladder.NC
@@ -700,4 +700,16 @@ func prune(S point, es []*edge) []*edge {
 		}
 	}
 	return keep
+}
+
+// contactOperand reads a contact's variable. "T0.Q" on a timer or counter
+// instance is the instance itself in rungkit's model.
+func (im *importer) contactOperand(v string) string {
+	v = strings.TrimSpace(v)
+	if base, ok := strings.CutSuffix(v, ".Q"); ok {
+		if o, err := im.prof.Resolve(base, im.p); err == nil && (o.Class == profile.TimerInst || o.Class == profile.CounterInst) {
+			return base
+		}
+	}
+	return v
 }

@@ -112,12 +112,14 @@ The text grammar cannot produce trees that break these rules; trees from JSON ar
 - Whatever hangs off a timer's or counter's Q becomes a separate branch reading the instance as a contact (the timer runs first, so the value is the same)
 - melsec programs are written with IEC spellings and the profile is kept in `addData`; import restores constants and timer presets to MELSEC spellings when it finds it
 - Exports were validated against the official schema (tc6_xml_v201.xsd from Beremiz). The tests do not validate the schema (the Go standard library has no XSD validator)
+- For Beremiz builds: every wire carries its path (`position`; optional in the schema but required by Beremiz), a default task is written, and contacts on timers and counters read `T0.Q`
+- Beremiz runs coils in position order and blocks such as timers afterwards. `executionOrderId` applies only to blocks, so rung order cannot be enforced ([eval/interop](../eval/interop/README.md))
 
 ## Next
 
 1. Confirm and support the GX Works3 import format ([how to check](verify-melsec.en.md))
 2. Mitsubishi FX5 profile (octal X/Y)
 3. Browser UI (ladder view and editing, WebAssembly)
-4. Check PLCopen XML and ST against real Beremiz / OpenPLC Editor / matiec
+4. Check PLCopen XML in OpenPLC Editor v4 and CODESYS themselves (Beremiz and matiec are done: [eval/interop](../eval/interop/README.md))
 5. Formal verification of safety properties (ESBMC-PLC and others)
 6. Ladder pictures and ASCII view (`render`)

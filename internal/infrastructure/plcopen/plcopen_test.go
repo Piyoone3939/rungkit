@@ -267,3 +267,32 @@ func TestDeadBranchesAreDropped(t *testing.T) {
 		t.Fatalf("%+v", p.Rungs)
 	}
 }
+
+// What Beremiz needs to build the project (see eval/interop).
+func TestBuildableByBeremiz(t *testing.T) {
+	p, _, _ := ldt.Parse("rung { X0 -> TON(T0, K10) }\nrung { T0 -> OUT(Y0) }\n")
+	x, err := Export(p, "Main", fixed)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{
+		`<pouInstance name="instance0" typeName="Main"/>`,
+		`<task name="task0" priority="0" interval="T#10ms">`,
+		`<variable>T0.Q</variable>`,
+	} {
+		if !strings.Contains(x, want) {
+			t.Errorf("xml lacks %s", want)
+		}
+	}
+	// every wire has a path
+	if strings.Count(x, "<connection ") != strings.Count(x, "</connection>") {
+		t.Error("a connection without position points")
+	}
+	q, err := Import([]byte(x))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := ldt.FormatRung(q.Rungs[1].Body); got != "T0 -> OUT(Y0)" {
+		t.Errorf("T0.Q read back as %q", got)
+	}
+}
