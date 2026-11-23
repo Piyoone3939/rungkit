@@ -3,7 +3,48 @@
 ラダープログラムを、AIと人が同じテキストで読み書きするための土台です。
 PLCのラダー図を「直列・並列の木」として持ち、テキスト（`.ldt`）、JSON、三菱のリスト形式、IEC 61131-3 の ST に変換します。
 
-> 状態: 試作（v0）。シミュレーターまであります。MCPサーバーと画面はまだありません。
+> 状態: 試作（v0）。編集コマンド、シミュレーター、MCPサーバーまであります。画面はまだありません。
+
+## AIから使う（MCP）
+
+```sh
+go build -o rungkit ./cmd/rungkit            # Windows では rungkit.exe
+claude mcp add rungkit -- /path/to/rungkit mcp
+```
+
+`rungkit mcp FILE` のようにファイルを渡すと、開いた状態で起動します。ツールは次のとおりです。
+
+| ツール | 内容 |
+|---|---|
+| `open_program` / `new_program` / `save_program` | 開く / 新しく作る / 保存（保存するまでファイルは変わらない） |
+| `read_program` | プログラム全体を、ラングID（`// r1`）と要素ID（`X0@e3`）付きで表示 |
+| `edit_program` | 編集コマンドのリストをまとめて適用。1つでも失敗したら何も変わらない。1回が元に戻す1単位 |
+| `undo` / `redo` | 元に戻す / やり直す |
+| `check_program` | エラーと警告（コード、ラングID、要素ID付き） |
+| `run_scenario` | シナリオをシミュレーターで実行（テキストか `.ldtest` のパス。`trace` でスキャンごとの記録） |
+| `export_program` | `melsec` / `st` / `json` / `ldt` に書き出し |
+
+編集コマンド（`edit_program` の `ops`）:
+
+| コマンド | 内容 |
+|---|---|
+| `add_rung(text, after?, comment?, label?)` | ラングを追加 |
+| `replace_rung(rung, text)` / `delete_rung(rung)` / `move_rung(rung, after)` / `set_rung(rung, comment?, label?)` | ラングの置き換え・削除・移動・コメント |
+| `insert_series(target, position, text)` | 要素の前後に条件を直列で入れる |
+| `insert_parallel(target, to?, text)` | 要素（または直列の範囲 target..to）に並列の枝を足す。出力に足すと出力の分岐になる |
+| `replace_element(target, text)` / `delete_element(target)` / `set_operand(target, operand)` | 要素の置き換え・削除・デバイス変更 |
+| `set_symbol(name, type?, address?, comment?)` / `delete_symbol(name)` | デバイスコメント・変数宣言 |
+
+例: 停止ボタンの後ろに非常停止を足す
+
+```json
+{"ops": [
+  {"op": "insert_series", "target": "e3", "position": "after", "text": "!X3"},
+  {"op": "set_symbol", "name": "X3", "comment": "非常停止"}
+]}
+```
+
+ラングが正しい形でなくなる編集（出力の右に接点を置く、など）は理由付きで断ります。デバイスの間違い（入力に書き込む、など）は断らずに `diagnostics` で返すので、続けて直せます。
 
 ## 書き方（.ldt）
 
@@ -105,17 +146,26 @@ go run ./cmd/rungkit test -json examples/conveyor.ldt examples/conveyor.ldtest  
 | `melsec-iqr` | 三菱 iQ-R。X/Y/B/W は16進、`D0.3` のビット指定、`K`/`H` 定数、タイマーは100ms単位 |
 | `iec` | IEC 61131-3。`sym 名前 : 型 @ アドレス` で宣言、`%IX0.0`、`T#5s` |
 
-## 構成
+## 構成（オニオンアーキテクチャ）
 
-| パッケージ | 役割 |
-|---|---|
-| [ir](ir/) | データ構造、正規化、形のチェック、JSON |
-| [ldt](ldt/) | テキスト形式の読み込みと書き出し |
-| [profile](profile/) | メーカーごとのデバイスと命令 |
-| [check](check/) | エラーと警告 |
-| [export/melsec](export/melsec/) | 三菱リスト形式（LD/AND/ORB/ANB/MPS/MRD/MPP） |
-| [export/st](export/st/) | Structured Text |
-| [sim](sim/) | シミュレーターとシナリオ（.ldtest） |
+依存は外から内への一方向です。[internal/architecture_test.go](internal/architecture_test.go) がこのルールを検査します。
+
+| 層 | パッケージ | 役割 |
+|---|---|---|
+| ドメイン | [ladder](internal/domain/ladder/) | ラングの木、正規化、形のルール、ID |
+| | [profile](internal/domain/profile/) | メーカーごとのデバイスと命令 |
+| | [check](internal/domain/check/) | エラーと警告 |
+| | [sim](internal/domain/sim/) | スキャンのシミュレーター |
+| アプリケーション | [editing](internal/application/editing/) | 編集コマンド、元に戻す・やり直す |
+| | [scenario](internal/application/scenario/) | シナリオの実行 |
+| | [workspace](internal/application/workspace/) | 開く・保存・確認・編集・書き出し・シナリオ（CLIとMCPの窓口）。必要なインターフェースをここで宣言する |
+| インフラ | [ldt](internal/infrastructure/ldt/) | `.ldt` テキストの読み書き |
+| | [ldtest](internal/infrastructure/ldtest/) | `.ldtest` シナリオの読み込み |
+| | [jsoncodec](internal/infrastructure/jsoncodec/) | JSON |
+| | [export/melsec](internal/infrastructure/export/melsec/) / [export/st](internal/infrastructure/export/st/) | 三菱リスト形式 / Structured Text |
+| | [filestore](internal/infrastructure/filestore/) | ファイルの読み書き |
+| プレゼンテーション | [cli](internal/presentation/cli/) / [mcpserver](internal/presentation/mcpserver/) | コマンドライン / MCPサーバー |
+| 組み立て | [cmd/rungkit](cmd/rungkit/) | アダプタをつないで起動するだけ |
 
 設計の考え方は [docs/design.md](docs/design.md) にあります。
 
