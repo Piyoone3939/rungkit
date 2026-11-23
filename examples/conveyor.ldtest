@@ -1,0 +1,56 @@
+// conveyor.ldt のシナリオ
+// 実行: go run ./cmd/rungkit test examples/conveyor.ldt examples/conveyor.ldtest
+
+scan 10ms
+
+test "運転ボタンで動き、停止ボタンで止まる" {
+  set X0 on
+  run 1
+  expect Y0 on
+  expect Y1 on
+  set X0 off
+  run 1
+  expect Y0 on      // 自己保持
+  set X1 on
+  run 1
+  expect Y0 off
+  expect Y1 off
+}
+
+test "ワークが来たら5秒後に1つ数える" {
+  set X0 on
+  run 1
+  set X0 off
+  set X2 on
+  run 1
+  expect M10 on
+  run 4s
+  expect T0 off
+  expect D0 0
+  wait T0 on within 2s
+  expect D0 1
+  run 1
+  expect M10 off
+  expect T0 off
+  expect D0 1       // INCP なので1回だけ
+}
+
+test "センサが付いたままでも2回目は数えない" {
+  set X0 on
+  set X2 on
+  run 10s
+  expect D0 1       // rise(X2) なので、付いたままでは再びセットされない
+}
+
+test "停止中はワークが来ても数えない" {
+  set X2 on
+  run 10s
+  expect M10 off
+  expect D0 0
+}
+
+test "1000個でゼロに戻す" {
+  set D0 1000
+  run 1
+  expect D0 0
+}

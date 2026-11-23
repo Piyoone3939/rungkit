@@ -1,0 +1,36 @@
+profile melsec-iqr
+
+sym X0 "運転ボタン"
+sym X1 "停止ボタン"
+sym X2 "ワーク検出センサ"
+sym Y0 "コンベアモータ"
+sym Y1 "運転ランプ"
+sym M10 "ワーク到着"
+sym T0 "到着後の待ち時間"
+sym D0 "生産数"
+
+rung "運転 自己保持" {
+  (X0 | Y0) & !X1 -> OUT(Y0)
+}
+
+rung "ランプと到着の記録" {
+  Y0 -> {
+    OUT(Y1)
+    rise(X2) -> SET(M10)
+  }
+}
+
+rung "到着から5秒待つ" {
+  M10 -> TON(T0, K50)
+}
+
+rung "待ち終わりで数えてリセット" {
+  T0 -> {
+    INCP(D0)
+    RST(M10)
+  }
+}
+
+rung "1000個でゼロに戻す" {
+  [D0 >= K1000] -> MOV(K0, D0)
+}
