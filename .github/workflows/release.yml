@@ -6,6 +6,7 @@ on:
 
 permissions:
   contents: write
+  actions: write # to start the pages workflow
 
 jobs:
   goreleaser:
@@ -24,3 +25,8 @@ jobs:
           args: release --clean
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      # Publish the browser version too. Pages may only deploy from main, and
+      # a workflow_dispatch is the one event GITHUB_TOKEN can start.
+      - run: gh workflow run pages.yml --ref main
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

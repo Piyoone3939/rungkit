@@ -1,12 +1,10 @@
 name: pages
 
-# Publishes the browser version (web/) to GitHub Pages when a v* tag is pushed
-# (the same trigger as the release; a release created by the release workflow
-# cannot start other workflows), or by hand from the Actions tab. Pages must be
-# enabled for the repository (Settings > Pages > Source: GitHub Actions).
+# Publishes the browser version (web/) to GitHub Pages. The release workflow
+# starts it on main after each v* release (Pages deploys only from main), and
+# it can be run by hand from the Actions tab. Pages must be enabled for the
+# repository (Settings > Pages > Source: GitHub Actions).
 on:
-  push:
-    tags: ["v*"]
   workflow_dispatch:
 
 permissions:
