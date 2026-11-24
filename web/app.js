@@ -13,8 +13,11 @@ const T = {
     tagline: "ラダーをテキストで書き、その場で図と動作を確かめる",
     example: "例を開く", exConveyor: "コンベア（三菱）", exVerify: "三菱の動作確認用", exIec: "IEC の例",
     open: "開く", save: ".ldt を保存", format: "整形", export: "書き出し",
-    program: "プログラム（.ldt）", ladder: "ラダー図", clickHint: "要素をクリックして選び、上のボタンで編集します（Delete で削除、Esc で選択解除）",
+    program: "プログラム（.ldt）", ladder: "ラダー図", clickHint: "要素をクリックして選び、リボンで編集。部品は左からドラッグ（Delete で削除、Esc で解除）",
     parts: "部品", cancel: "やめる", ok: "OK",
+    tabLadder: "ラダー", tabSim: "シミュレーション", tabIo: "ファイル・書き出し", browser: "ブラウザ", paneText: "テキスト", paneTree: "構成",
+    gCreate: "作成", gModify: "変更", gRemove: "削除・履歴", gText: "テキスト", gScenario: "シナリオ",
+    zoomIn: "拡大", zoomOut: "縮小", zoomFit: "幅に合わせる", treeProgram: "プログラム", treeRungs: "ラング", treeSymbols: "デバイス",
     pNo: "a接点（ドラッグして図に置く）", pNc: "b接点", pRise: "立上り", pFall: "立下り", pCmp: "比較",
     pOut: "コイル OUT", pSet: "SET", pRst: "RST", pTon: "タイマー", pCtu: "カウンタ",
     askDevice: "デバイス", askCompare: "比較の式", askTimer: "タイマーとその設定値", askCounter: "カウンタとその設定値",
@@ -39,8 +42,11 @@ const T = {
     tagline: "Write ladder as text; see the diagram and the behavior as you type",
     example: "Open an example", exConveyor: "Conveyor (MELSEC)", exVerify: "MELSEC behavior check", exIec: "IEC example",
     open: "Open", save: "Save .ldt", format: "Format", export: "Export",
-    program: "Program (.ldt)", ladder: "Ladder", clickHint: "Click an element to select it, then edit with the buttons above (Delete removes, Esc deselects)",
+    program: "Program (.ldt)", ladder: "Ladder", clickHint: "Click an element, then edit from the ribbon; drag parts from the left (Delete removes, Esc deselects)",
     parts: "Parts", cancel: "Cancel", ok: "OK",
+    tabLadder: "Ladder", tabSim: "Simulation", tabIo: "File & export", browser: "Browser", paneText: "Text", paneTree: "Structure",
+    gCreate: "Create", gModify: "Modify", gRemove: "Delete & history", gText: "Text", gScenario: "Scenario",
+    zoomIn: "Zoom in", zoomOut: "Zoom out", zoomFit: "Fit width", treeProgram: "Program", treeRungs: "Rungs", treeSymbols: "Devices",
     pNo: "NO contact (drag onto the diagram)", pNc: "NC contact", pRise: "Rising edge", pFall: "Falling edge", pCmp: "Comparison",
     pOut: "Coil OUT", pSet: "SET", pRst: "RST", pTon: "Timer", pCtu: "Counter",
     askDevice: "Device", askCompare: "Comparison", askTimer: "Timer and preset", askCounter: "Counter and preset",
@@ -156,6 +162,7 @@ function refresh() {
     if (r.line) li.onclick = () => jumpTo($("src"), r.line, r.col);
     list.append(li);
     positions = {};
+    buildTree(null);
     return;
   }
   positions = r.positions || {};
@@ -174,6 +181,8 @@ function refresh() {
     list.append(li);
   }
   svg.innerHTML = r.svg || "";
+  applyZoom();
+  buildTree(r);
 }
 
 let timer = 0;
@@ -192,6 +201,8 @@ function select(rung, elem) {
   if (elem) document.querySelector(`#svg g.elem[data-elem="${elem}"]`)?.classList.add("selected");
   else if (rung) document.querySelector(`#svg g.rung[data-rung="${rung}"]`)?.classList.add("selected");
   $("sel").textContent = rung ? t("selected", rung, elem) : "";
+  document.querySelectorAll("#tree .row.selected").forEach((x) => x.classList.remove("selected"));
+  if (rung) document.querySelector(`#tree .row[data-rung="${rung}"]`)?.classList.add("selected");
   document.querySelectorAll(".edit-bar [data-need]").forEach((b) => {
     b.disabled = b.dataset.need === "elem" ? !sel.elem : !sel.rung;
   });
@@ -359,6 +370,103 @@ function wireParts() {
   });
 }
 
+// ---- view: zoom ----
+
+let zoom = parseFloat(store.get("zoom")) || 1;
+function applyZoom() {
+  const svg = $("svg").querySelector("svg");
+  $("zoomReset").textContent = Math.round(zoom * 100) + "%";
+  if (!svg) return;
+  const w = parseFloat(svg.getAttribute("width")), h = parseFloat(svg.getAttribute("height"));
+  svg.style.width = `${w * zoom}px`;
+  svg.style.height = `${h * zoom}px`;
+}
+function setZoom(z) {
+  zoom = Math.min(3, Math.max(0.4, Math.round(z * 100) / 100));
+  store.set("zoom", String(zoom));
+  applyZoom();
+}
+function fitZoom() {
+  const svg = $("svg").querySelector("svg");
+  if (!svg) return;
+  const box = $("svg");
+  const avail = box.clientWidth - 32;
+  setZoom(avail / parseFloat(svg.getAttribute("width")));
+}
+
+// ---- browser: structure tree ----
+
+function treeNode(label, opts = {}) {
+  const li = document.createElement("li");
+  const row = document.createElement("div");
+  row.className = "row";
+  row.style.setProperty("--depth", opts.depth || 0);
+  if (opts.children) {
+    li.classList.add("open");
+    row.insertAdjacentHTML("beforeend", '<svg class="chev"><use href="#i-chev"/></svg>');
+  }
+  if (opts.icon) row.insertAdjacentHTML("beforeend", `<svg><use href="#${opts.icon}"/></svg>`);
+  if (opts.id) { const s = document.createElement("span"); s.className = "id"; s.textContent = opts.id; row.append(s); }
+  const name = document.createElement("span"); name.textContent = label; row.append(name);
+  if (opts.count !== undefined) { const c = document.createElement("span"); c.className = "count"; c.textContent = opts.count; row.append(c); }
+  li.append(row);
+  if (opts.children) {
+    const ul = document.createElement("ul");
+    opts.children.forEach((c) => ul.append(c));
+    li.append(ul);
+    row.onclick = () => li.classList.toggle("open");
+  }
+  return { li, row };
+}
+
+function buildTree(r) {
+  const tree = $("tree");
+  tree.replaceChildren();
+  const rungs = [...document.querySelectorAll("#svg g.rung")].map((g) => {
+    const title = g.querySelector("text.rung-title")?.textContent || g.dataset.rung;
+    const label = title.replace(new RegExp("^" + g.dataset.rung + "\\s*"), "") || "—";
+    const n = treeNode(label, { icon: "i-rung", id: g.dataset.rung, depth: 2 });
+    n.row.dataset.rung = g.dataset.rung;
+    n.row.onclick = () => {
+      select(g.dataset.rung, "");
+      g.scrollIntoView({ block: "nearest", behavior: "smooth" });
+      const p = positions[g.dataset.rung];
+      if (p) jumpTo($("src"), p[0], p[1]);
+      $("svg").focus({ preventScroll: true });
+    };
+    return n.li;
+  });
+  const syms = [];
+  $("src").value.split("\n").forEach((line, i) => {
+    const m = line.match(/^\s*sym\s+(\S+)\s*(.*)$/);
+    if (!m) return;
+    const note = (m[2].match(/"([^"]*)"/) || [, ""])[1];
+    const n = treeNode(note || m[2], { icon: "i-tag", id: m[1], depth: 2 });
+    n.row.onclick = () => { showPane("text"); jumpTo($("src"), i + 1, 1); };
+    syms.push(n.li);
+  });
+  const rungFolder = treeNode(t("treeRungs"), { icon: "i-folder", depth: 1, count: rungs.length, children: rungs });
+  const symFolder = treeNode(t("treeSymbols"), { icon: "i-folder", depth: 1, count: syms.length, children: syms });
+  const root = treeNode(`${t("treeProgram")} — ${fileName}`, { icon: "i-doc", depth: 0, children: [rungFolder.li, symFolder.li] });
+  tree.append(root.li);
+  if (sel.rung) document.querySelector(`#tree .row[data-rung="${sel.rung}"]`)?.classList.add("selected");
+}
+
+function showPane(name) {
+  document.querySelectorAll(".seg-btn").forEach((b) => b.classList.toggle("active", b.dataset.pane === name));
+  document.querySelector(".pane-text").hidden = name !== "text";
+  document.querySelector(".pane-tree").hidden = name !== "tree";
+  store.set("pane", name);
+}
+
+function showTab(name) {
+  document.querySelectorAll(".rtab").forEach((b) => {
+    b.classList.toggle("active", b.dataset.tab === name);
+    b.setAttribute("aria-selected", b.dataset.tab === name);
+  });
+  document.querySelectorAll(".ribbon-body .group").forEach((g) => { g.hidden = g.dataset.tab !== name; });
+}
+
 // ---- scenarios ----
 
 function runScenario() {
@@ -377,10 +485,10 @@ function runScenario() {
   const sum = document.createElement("div"); sum.className = "sum";
   sum.textContent = t("passed", passed, r.results.length);
   box.append(sum);
-  const pill = document.createElement("span");
-  pill.className = "pill " + (passed === r.results.length ? "ok" : "ng");
-  pill.textContent = `${passed}/${r.results.length} PASS`;
-  $("summary").append(pill);
+  const sum2 = document.createElement("span");
+  sum2.className = passed === r.results.length ? "ok" : "ng";
+  sum2.textContent = `${passed}/${r.results.length} PASS`;
+  $("summary").append(sum2);
   for (const x of r.results) {
     const div = document.createElement("div");
     div.className = "test " + (x.pass ? "pass" : "fail");
@@ -468,6 +576,22 @@ function wire() {
     download(name, r.text, fmt === "svg" ? "image/svg+xml" : undefined);
   };
   $("theme").onclick = toggleTheme;
+  document.querySelectorAll(".rtab").forEach((b) => { b.onclick = () => showTab(b.dataset.tab); });
+  document.querySelectorAll(".seg-btn").forEach((b) => { b.onclick = () => showPane(b.dataset.pane); });
+  showPane(store.get("pane") || "text");
+  $("runR").onclick = runScenario;
+  const syncTrace = () => $("traceR").setAttribute("aria-pressed", String($("trace").checked));
+  $("traceR").onclick = () => { $("trace").checked = !$("trace").checked; syncTrace(); };
+  $("trace").addEventListener("change", syncTrace);
+  $("zoomIn").onclick = () => setZoom(zoom * 1.2);
+  $("zoomOut").onclick = () => setZoom(zoom / 1.2);
+  $("zoomReset").onclick = () => setZoom(1);
+  $("zoomFit").onclick = fitZoom;
+  $("svg").addEventListener("wheel", (e) => {
+    if (!e.ctrlKey) return;
+    e.preventDefault();
+    setZoom(zoom * (e.deltaY < 0 ? 1.1 : 1 / 1.1));
+  }, { passive: false });
   wireParts();
   $("svg").addEventListener("keydown", (e) => {
     if ((e.key === "Delete" || e.key === "Backspace") && sel.elem) { e.preventDefault(); editAction("delete"); }

@@ -4,8 +4,9 @@
 
 Formats (`.ldt`, JSON, `.ldtest`, MCP tools) may change while the version is 0.x; changes are listed here. See [docs/decisions.en.md](docs/decisions.en.md).
 
-## Unreleased
+## 0.3.0 (2026-11-25)
 
+- Browser version: CAD-style workbench (tabbed ribbon, structure tree of rungs and devices, gridded viewport with zoom, flat panels) and new detailed icons
 - Published to the official MCP Registry (`io.github.Piyoone3939/rungkit`); `glama.json` names the maintainer for the Glama directory
 
 ## 0.2.0 (2026-11-24)
@@ -49,8 +50,9 @@ Formats (`.ldt`, JSON, `.ldtest`, MCP tools) may change while the version is 0.x
 
 0.x の間は形式（`.ldt`・JSON・`.ldtest`・MCPツール）を変えることがあり、変えたらここに書きます。[docs/decisions.md](docs/decisions.md) を参照してください。
 
-### 未リリース
+### 0.3.0（2026-11-25）
 
+- ブラウザ版: CAD 風の作業台に作り直し（タブ付きリボン、ラングとデバイスの構成の木、方眼の作業面と拡大・縮小、平らなパネル）。アイコンを描き直し
 - MCP 公式レジストリに登録（`io.github.Piyoone3939/rungkit`）。Glama のディレクトリ向けに管理者を示す `glama.json` を追加
 
 ### 0.2.0（2026-11-24）

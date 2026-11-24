@@ -9,7 +9,7 @@ rungkit keeps a ladder diagram as a series-parallel tree, lets an AI agent edit 
 
 > Status: prototype (0.x). Editing commands, simulator, MCP server, PLCopen XML and a browser version are in place.
 
-![rungkit in the browser: ribbon of edit tools on top, ladder text on the left, the diagram with a parts palette on the right, scenario results below](docs/images/web.jpg)
+![rungkit in the browser: tabbed ribbon on top, ladder text on the left, the diagram with a parts palette and zoom controls on the right, scenario results below](docs/images/web.jpg)
 
 ## Try it in the browser
 
