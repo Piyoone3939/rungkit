@@ -25,3 +25,8 @@ jobs:
         run: test -z "$(gofmt -l .)"
       - run: go vet ./...
       - run: go test ./...
+      - name: browser version (WebAssembly)
+        if: runner.os == 'Linux'
+        run: |
+          GOOS=js GOARCH=wasm go vet ./cmd/rungkit-web ./internal/presentation/web
+          sh web/build.sh ci

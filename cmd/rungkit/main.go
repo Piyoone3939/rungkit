@@ -15,6 +15,7 @@ import (
 	"github.com/Piyoone3939/rungkit/internal/infrastructure/ldtest"
 	"github.com/Piyoone3939/rungkit/internal/infrastructure/locale"
 	"github.com/Piyoone3939/rungkit/internal/infrastructure/plcopen"
+	"github.com/Piyoone3939/rungkit/internal/infrastructure/render"
 	"github.com/Piyoone3939/rungkit/internal/presentation/cli"
 )
 
@@ -25,10 +26,13 @@ func newWorkspace(opt cli.Options) *workspace.Workspace {
 		Scenarios: ldtest.Parser{},
 		Exporters: []workspace.Exporter{
 			melsec.Exporter{},
+			melsec.CSVExporter{ProjectName: opt.ProgramName},
 			st.Exporter{ProgramName: opt.ProgramName},
 			jsoncodec.Exporter{},
 			ldt.Exporter{},
 			plcopen.Exporter{ProgramName: opt.ProgramName},
+			render.ASCII{},
+			render.SVG{},
 		},
 	})
 }

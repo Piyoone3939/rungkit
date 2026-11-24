@@ -9,7 +9,7 @@ How to check rungkit's MELSEC support against the **GX Works3 trial version** (f
 | A | The **instruction list** rungkit writes is accepted by GX Works3 and gives the same ladder | [examples/verify/melsec-semantics.ldt](../examples/verify/melsec-semantics.ldt) |
 | B | The **simulator** behaves like the GX Works3 simulator | the same file and [melsec-semantics.ldtest](../examples/verify/melsec-semantics.ldtest) |
 
-Please fill in the record at the end and share it in an issue.
+Please fill in the record at the end and share it in an issue. Without GX Works3, see [C. Checking against the manuals](#c-checking-against-the-manuals-no-gx-works3-needed).
 
 ---
 
@@ -25,6 +25,7 @@ Please fill in the record at the end and share it in an issue.
 
 ```sh
 go run ./cmd/rungkit export -to melsec examples/verify/melsec-semantics.ldt > melsec-semantics.txt
+go run ./cmd/rungkit export -to gxw3 -name Verify -o melsec-semantics.csv examples/verify/melsec-semantics.ldt
 go run ./cmd/rungkit test examples/verify/melsec-semantics.ldt examples/verify/melsec-semantics.ldtest
 ```
 
@@ -32,11 +33,16 @@ go run ./cmd/rungkit test examples/verify/melsec-semantics.ldt examples/verify/m
 
 ## A. Is the instruction list accepted?
 
-The official way to import a list into GX Works3 (menu and file format) is **not known yet**; finding it is part of the result. Try in this order.
+According to the GX Works3 Operating Manual, the ladder editor imports a CSV of listed instructions. `-to gxw3` writes that format (UTF-16, as GX Works3 itself writes it). It has not been tried in GX Works3 yet, so check it in A-1; if it fails, type the instructions in A-2.
 
-### A-1. Look for an import function
+### A-1. Import the CSV
 
-Look for menus such as: Project → open other format / read, with text, CSV or GX Developer formats; a list (mnemonic) view or CSV import in the ladder editor; or search the help for "CSV", "text", "list", "mnemonic". If one exists, load `melsec-semantics.txt` and note whether **tabs or commas, Shift_JIS or UTF-8, and `;` comment lines** are accepted. If not, the first lines of a file exported *from* GX Works3 tell us the format to produce.
+1. Open the ladder editor and select Edit > Import File
+2. Choose the file type "CSV (tab delimited)(*.csv)" and open `melsec-semantics.csv`
+3. When asked for the conversion method for incorrect instructions, choose "Convert to line statement" and click Yes (importing replaces the program)
+4. Convert (F4)
+
+Note whether it imports, the text of any error, conversion errors, and whether the rung comments (V1–V9) came in as line statements. If it fails, the first ten lines of a CSV that GX Works3 writes with Edit > Export to File tell us what to change.
 
 ### A-2. Type the instructions (always possible)
 
@@ -67,6 +73,82 @@ In the ladder editor you can type instructions (start typing on an empty spot to
 | V9 | Press and release X5 twice | D50 | 2 | |
 
 For V7, note the timer unit in Parameter → CPU Parameter → Operation Related Setting → Timer Limit Setting (100 ms for the low-speed timer by default, as far as we know). The simulator may not run in real time; it is enough to see the value count 1, 2, 3 … every 100 ms and turn ON at 10.
+
+---
+
+## C. Checking against the manuals (no GX Works3 needed)
+
+If you cannot get GX Works3, check V1–V9 against Mitsubishi Electric's **public manuals**. This is weaker than running the simulator, but it shows whether rungkit matches what the specification says.
+
+### Getting the manuals
+
+- The English PDFs on Mitsubishi Electric's global FA site could be downloaded without membership
+- The PDFs restrict editing and copying, but any browser or PDF viewer can **read** them; there is no need to remove the protection
+- Manual numbers change between editions, so search by **title**
+
+| Short | Title | Where to look |
+|---|---|---|
+| Instr | MELSEC iQ-R Programming Manual (CPU Module Instructions, Standard Functions/Function Blocks) | the page of each instruction |
+| CPU | MELSEC iQ-R CPU Module User's Manual (Application) | timers, counters, scan |
+| GXW3 | GX Works3 Operating Manual | importing for A (CSV, text) |
+
+### What to check
+
+On an instruction page, read "Processing details", "Precautions" and "Operation error".
+
+| # | Question | rungkit | Where | Search for |
+|---|---|---|---|---|
+| V1 | Does `LDP` turn ON in the first scan when the input was already ON before RUN? | yes | Instr: `LDP` / CPU: STOP to RUN | `LDP`, `STOP to RUN`, `rising edge` |
+| V2 | Does a counter stop at its set value? | stops | Instr: `OUT C` / CPU: Counter | `OUT C`, `Counter`, `set value` |
+| V3 | Does 16-bit `*` write the 32-bit result to (d) and (d)+1, and which is the high word? | (d) low, (d)+1 high | Instr: BIN 16-bit multiplication | `BIN 16-bit multiplication`, `*(P)` |
+| V4 | Where do 16-bit `/` quotient and remainder go, and what sign has a negative remainder? | (d) quotient, (d)+1 remainder; -7/2 gives -3 and -1 | Instr: BIN 16-bit division | `BIN 16-bit division`, `remainder` |
+| V5 | Does `INC` go from 32767 to -32768? | yes | Instr: `INC` | `INC(P)`, `32767`, `-32768` |
+| V6 | With two `OUT`s to one coil, does the later one win? | yes | CPU or Instr: `OUT` / double coil | `double coil`, `OUT` |
+| V7 | When does a timer's current value grow (when `OUT T` runs, or in END processing), and when does its contact turn ON? | one scan added each time `OUT T` runs; ON in scan preset+1 after the input | CPU: Timer (accuracy, timing) / Instr: `OUT T` | `Timer`, `accuracy`, `END processing`, `low-speed timer` |
+| V8 | Do `MPS` / `MRD` / `MPP` store the result before the branch for later branches? | yes (M7 ON even though M5 turned OFF) | Instr: `MPS`, `MRD`, `MPP` | `MPS`, `operation result` |
+| V9 | Is `PLS` ON for one scan on the rising edge, and what happens at STOP to RUN? | one scan per press | Instr: `PLS` | `PLS`, `one scan` |
+| A | Is there a way to import an instruction list or CSV, and in what format? | unknown | GXW3: import / CSV / text | `CSV`, `import`, `text file`, `instruction list` |
+
+V1, V7 and V9 are the most likely to differ: manuals often add notes about "STOP to RUN" or "END processing". For V7 the way the timer counts may itself be different.
+
+### Recording
+
+For each item give the manual's title, number and revision (on the cover) and the page, and summarize what it says in your own words; there is no need to copy long passages. For figures or tables the page number is enough.
+
+```
+Manual: title / number / revision
+V1: (page) what it says:            same as rungkit / different / not stated
+V2:
+V3:
+V4:
+V5:
+V6:
+V7:
+V8:
+V9:
+A:
+```
+
+---
+
+### Results of C (2026-11-24)
+
+Checked against: Instr = SH-081266ENG (AC), CPU = SH-081264ENG (AQ), GXW3 = SH-081215ENG (AN). Pages are the numbers printed in the manuals.
+
+| # | Result | What the manual says (summary) | Where |
+|---|---|---|---|
+| V1 | same | An input already ON at power-on executes in the first scan (PLS precautions, latch relay example); after STOP to RUN it does not execute again. rungkit has no STOP, so this does not apply | Instr p.188 |
+| V2 | same | After counting up, value and contact stay until RST; a set value of 0 works as 1 | Instr p.175 |
+| V3 | same | 32-bit result, (d)+1 is the high word | Instr p.248 |
+| V4 | partly | Quotient in (d), remainder in (d)+1; the sign of a negative remainder is not stated (rungkit gives -1) | Instr p.250 |
+| V5 | same | Executed at 32767 it stores -32768 | Instr INC(P) |
+| V6 | same | Each OUT sets the device from its own operation result; Y outputs the result of the last OUT | Instr p.58 |
+| V7 | different, fixed | 100 ms ticks are counted at END and added when `OUT T` runs, from the first scan, so the timer can turn on before the preset (accuracy -(1 scan + 100 ms) to +1 scan). rungkit now works the same way | CPU p.385-390 |
+| V8 | same | MPS stores the operation result; MRD and MPP read it and continue | Instr p.160 |
+| V9 | same | ON for one scan on the rising edge, OFF otherwise | Instr p.187 |
+| A | found | Edit > Import File reads a tab-delimited CSV; format as in A-1 and `-to gxw3` | GXW3 p.301-304 |
+
+A counter with a set value of 0 (it was ON before counting) was also found and fixed.
 
 ---
 

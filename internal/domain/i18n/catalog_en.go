@@ -178,4 +178,5 @@ var english = map[string]string{
 	"sym %s: 三菱のプロファイルでは型とアドレスを使いません（デバイス名とコメントだけを書きます）": "sym %s: the melsec profile uses no type or address (give only the device and a comment)",
 	"label %q は英数字と _ だけで書きます（説明は comment に書きます）":        "label %q may contain only letters, digits and _ (put descriptions in comment)",
 	"保存すると読み戻せない内容になるので保存しません: %w":                       "not saved: the file could not be read back: %w",
+	"%s: %s の番号は8進数です（0〜7）":                              "%s: %s devices are numbered in octal (0-7)",
 }

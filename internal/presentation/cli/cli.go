@@ -7,6 +7,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"os"
 
 	"github.com/Piyoone3939/rungkit/internal/application/workspace"
 	"github.com/Piyoone3939/rungkit/internal/domain/i18n"
@@ -18,7 +19,9 @@ const usage = `rungkit — ladder programs as text
 usage:
   rungkit fmt [-w] FILE                         canonical .ldt (-w rewrites the file)
   rungkit check FILE                            errors and warnings
-  rungkit export -to FORMAT [-name N] FILE      melsec | st | plcopen | json | ldt
+  rungkit export -to FORMAT [-name N] [-o OUT] FILE
+                                                melsec | gxw3 | st | plcopen | ascii | svg | json | ldt
+                                                (-o writes the file; use it for gxw3, which is UTF-16)
   rungkit test [-trace] [-json] FILE SCENARIO   run a .ldtest scenario
   rungkit mcp [-root DIR] [FILE]                MCP server on stdio; files only inside DIR (default: .)
 
@@ -51,7 +54,8 @@ func Run(args []string, stdout, stderr io.Writer, newWorkspace Factory) int {
 	fs.SetOutput(stderr)
 	write := fs.Bool("w", false, "rewrite the file (fmt)")
 	to := fs.String("to", "", "export format")
-	name := fs.String("name", "Main", "PROGRAM / POU name (export -to st, plcopen)")
+	name := fs.String("name", "Main", "PROGRAM / POU / project name (export -to st, plcopen, gxw3)")
+	outFile := fs.String("o", "", "write the export to this file (export)")
 	trace := fs.Bool("trace", false, "print the scan trace (test)")
 	asJSON := fs.Bool("json", false, "print results as JSON (test)")
 	root := fs.String("root", ".", "folder the MCP server may read and write (mcp)")
@@ -115,12 +119,19 @@ func Run(args []string, stdout, stderr io.Writer, newWorkspace Factory) int {
 			fmt.Fprintln(stderr, i18n.T("-to に書き出し形式を指定します（%v）", ws.Formats()))
 			return 2
 		}
-		out, err := ws.Export(*to)
+		out, err := ws.ExportFile(*to)
 		if err != nil {
 			fmt.Fprintf(stderr, "%s: %s\n", file, err)
 			return 1
 		}
-		fmt.Fprint(stdout, out)
+		if *outFile != "" {
+			if err := os.WriteFile(*outFile, out, 0o644); err != nil {
+				fmt.Fprintln(stderr, err)
+				return 1
+			}
+			return 0
+		}
+		stdout.Write(out)
 	case "test":
 		return runTests(ws, fs.Arg(1), *trace, *asJSON, stdout, stderr)
 	}

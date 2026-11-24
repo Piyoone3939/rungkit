@@ -8,14 +8,17 @@ import (
 	"github.com/Piyoone3939/rungkit/internal/domain/ladder"
 )
 
-// melsec is the MELSEC iQ-R dialect (X/Y/B/W written in hexadecimal).
+// melsec is a MELSEC dialect. iQ-R writes X/Y/B/W in hexadecimal; FX5
+// writes X/Y in octal (X0-X7, X10, ...).
 type melsec struct {
-	name   string
-	instrs map[string]InstrSpec
+	name    string
+	instrs  map[string]InstrSpec
+	octalXY bool
 }
 
 func init() {
 	register(&melsec{name: "melsec-iqr", instrs: instrTable()})
+	register(&melsec{name: "melsec-fx5", instrs: instrTable(), octalXY: true})
 }
 
 func (m *melsec) Name() string                        { return m.name }
@@ -80,13 +83,19 @@ func (m *melsec) Resolve(op string, _ *ladder.Program) (Operand, error) {
 		if d.info.hex {
 			base = 16
 		}
+		if m.octalXY && (d.prefix == "X" || d.prefix == "Y") {
+			base = 8
+		}
 		if num == "" {
 			return Operand{}, i18n.Errorf("%s: デバイス番号がありません", op)
 		}
 		idx, err := strconv.ParseUint(num, base, 32)
 		if err != nil {
-			if base == 16 {
+			switch base {
+			case 16:
 				return Operand{}, i18n.Errorf("%s: %s の番号は16進数です", op, d.prefix)
+			case 8:
+				return Operand{}, i18n.Errorf("%s: %s の番号は8進数です（0〜7）", op, d.prefix)
 			}
 			return Operand{}, i18n.Errorf("%s: %s の番号は10進数です", op, d.prefix)
 		}

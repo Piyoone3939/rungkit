@@ -1,0 +1,16 @@
+name: Feature request / 要望
+description: Something rungkit should do / rungkit にやってほしいこと
+labels: [enhancement]
+body:
+  - type: textarea
+    id: need
+    attributes:
+      label: What do you want to do? / やりたいこと
+      description: The task you are trying to get done, not only the feature / 機能だけでなく、何をしたいのか
+    validations:
+      required: true
+  - type: textarea
+    id: example
+    attributes:
+      label: Example / 例
+      description: A ladder, a vendor, a file format… / ラダー、メーカー、ファイル形式など

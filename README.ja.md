@@ -5,7 +5,20 @@
 AIが操作する前提で作った、PLCのラダープログラム開発環境です。
 ラダー図を「直列・並列の木」として持ち、AIがMCPで編集し、シミュレーターで自分の作業を確かめられます。三菱（MELSEC iQ-R）とIECに対応し、テキスト（`.ldt`）・JSON・三菱のリスト形式・Structured Text・PLCopen XML を読み書きします。
 
-> 状態: 試作（0.x）。編集コマンド、シミュレーター、MCPサーバー、PLCopen XML まであります。画面（ブラウザ版）はこれからです。
+> 状態: 試作（0.x）。編集コマンド、シミュレーター、MCPサーバー、PLCopen XML、ブラウザ版まであります。
+
+![ブラウザ版の rungkit: 左にラダーのテキスト、右にラダー図、下にシナリオの結果](docs/images/web.jpg)
+
+## ブラウザで試す
+
+ブラウザ版は、ページの中だけで動きます（Go を WebAssembly にしたもの）。左で `.ldt` を書くと、ラダー図とエラーがその場で出ます。図の要素をクリックするとその行に移動し、`.ldtest` のシナリオを記録付きで実行でき、どの形式にも書き出せます。入力はどこにも送られず、ブラウザの中に残ります。
+
+```sh
+sh web/build.sh                          # web/dist に作る
+python -m http.server -d web/dist 8000   # http://localhost:8000 を開く
+```
+
+リリースのたびに GitHub Pages で公開する予定です（[.github/workflows/pages.yml](.github/workflows/pages.yml)）。
 
 ## インストール
 
@@ -34,7 +47,7 @@ claude mcp add rungkit -- rungkit mcp
 | `undo` / `redo` | 元に戻す / やり直す |
 | `check_program` | エラーと警告（コード、ラングID、要素ID付き） |
 | `run_scenario` | シナリオをシミュレーターで実行（テキストか `.ldtest` のパス。`trace` でスキャンごとの記録） |
-| `export_program` | `melsec` / `st` / `plcopen` / `json` / `ldt` に書き出し |
+| `export_program` | `melsec` / `gxw3` / `st` / `plcopen` / `json` / `ldt` / `ascii` / `svg` に書き出し |
 
 編集コマンド（`edit_program` の `ops`）:
 
@@ -100,8 +113,10 @@ rung "ランプと到着の記録" {
 go run ./cmd/rungkit check examples/conveyor.ldt          # エラーと警告
 go run ./cmd/rungkit fmt -w examples/conveyor.ldt         # 正規の書き方にそろえる
 go run ./cmd/rungkit export -to melsec examples/conveyor.ldt
+go run ./cmd/rungkit export -to gxw3 -o conveyor.csv examples/conveyor.ldt   # GX Works3 に取り込む CSV（編集 → ファイル読出）
 go run ./cmd/rungkit export -to st examples/conveyor.ldt
 go run ./cmd/rungkit export -to json examples/conveyor.ldt
+go run ./cmd/rungkit export -to ascii examples/conveyor.ldt   # ラダー図を文字で描く（svg なら画像）
 ```
 
 `check` はエラーに番号（`E_READ_ONLY` など）と行・列を付けます。AIが1件ずつ直せるようにするためです。
@@ -166,7 +181,7 @@ go run ./cmd/rungkit test -json examples/conveyor.ldt examples/conveyor.ldtest  
 - ラングは上から順に、命令はすべて毎スキャン実行する（途中で評価を省略しない。立上り検出やタイマーが入力を見逃さない）
 - 出力はその場で書くので、同じスキャンの後ろのラングは新しい値を見る
 - 出力の分岐は、分岐前の通電状態を使う（三菱の MPS と同じ）
-- 三菱の `T` は100ms単位、カウンタは設定値で止まる、`MUL` は D(n+1) に上位、`DIV` は D(n+1) に余り、ワードは16ビットで桁あふれ
+- 三菱の `T` は、実機と同じく、勝手に進む100msの時計の目盛りを実行のたびに足す（そのため「設定値＋1スキャン」より最大100ms早くONになることがある）。カウンタは設定値で止まる（設定値0は1として扱う）。`MUL` は D(n+1) に上位、`DIV` は D(n+1) に余り、ワードは16ビットで桁あふれ
 - `SM400`（常時ON）、`SM401`（常時OFF）、`SM402`（最初のスキャンだけON）
 - 0で割ると、スキャン番号とラング・要素のIDを付けたエラーで止まる
 
@@ -175,6 +190,7 @@ go run ./cmd/rungkit test -json examples/conveyor.ldt examples/conveyor.ldtest  
 | 名前 | 内容 |
 |---|---|
 | `melsec-iqr` | 三菱 iQ-R。X/Y/B/W は16進、`D0.3` のビット指定、`K`/`H` 定数、タイマーは100ms単位 |
+| `melsec-fx5` | 三菱 FX5。`melsec-iqr` と同じだが、X/Y は8進（X0〜X7、X10、…） |
 | `iec` | IEC 61131-3。`sym 名前 : 型 @ アドレス` で宣言、`%IX0.0`、`T#5s` |
 
 ## 構成（オニオンアーキテクチャ）
@@ -197,9 +213,10 @@ go run ./cmd/rungkit test -json examples/conveyor.ldt examples/conveyor.ldtest  
 | | [plcopen](internal/infrastructure/plcopen/) | PLCopen XML の読み書き |
 | | [filestore](internal/infrastructure/filestore/) | ファイルの読み書き（MCPでは作業フォルダの外を断る） |
 | | [locale](internal/infrastructure/locale/) | OSの言語設定を読む |
-| プレゼンテーション | [cli](internal/presentation/cli/) / [mcpserver](internal/presentation/mcpserver/) | コマンドライン / MCPサーバー |
+| | [render](internal/infrastructure/render/) | ラダー図を文字（`ascii`）と SVG（`svg`）で描く |
+| プレゼンテーション | [cli](internal/presentation/cli/) / [mcpserver](internal/presentation/mcpserver/) / [web](internal/presentation/web/) | コマンドライン / MCPサーバー / ブラウザとのつなぎ |
 | 共通 | [i18n](internal/domain/i18n/) | メッセージの日英翻訳（どの層からも使う。標準ライブラリだけに依存） |
-| 組み立て | [cmd/rungkit](cmd/rungkit/) | アダプタをつないで起動するだけ |
+| 組み立て | [cmd/rungkit](cmd/rungkit/) / [cmd/rungkit-web](cmd/rungkit-web/) | アダプタをつないで起動するだけ（CLI・MCP ／ ブラウザ） |
 
 - 設計: [docs/design.md](docs/design.md)
 - 決めたこと（ライセンス・配布・範囲など）: [docs/decisions.md](docs/decisions.md)
@@ -210,8 +227,12 @@ go run ./cmd/rungkit test -json examples/conveyor.ldt examples/conveyor.ldtest  
 
 - rungkit は**実機のPLCと通信しません**（書き込み・モニタ・強制などのオンライン機能はありません）。書き出したものは、技術者が確認してからメーカーのツールで取り込んでください
 - AIが書いたラダーは、`check` とシナリオで確かめてから使ってください。非常停止などの安全回路は、ソフトではなく配線と安全機器で作ってください
-- 三菱リスト形式の**命令の並び**は標準の変換規則どおりですが、GX Works3 に取り込むときの**ファイル形式はまだ確認できていません**（[確認手順](docs/verify-melsec.md)）
+- 三菱リスト形式の命令の並びは標準の変換規則どおりで、シミュレーターの動きは三菱のマニュアルと照合済みです（[結果](docs/verify-melsec.md#c-の結果2026-11-24)）。`-to gxw3` は GX Works3 の操作マニュアルにある形式で CSV を書き出しますが、**GX Works3 に実際に取り込んで試したことはまだありません**（[確認手順](docs/verify-melsec.md)）
 - 三菱電機・MELSEC・GX Works などは各社の商標です。rungkit は各社と関係ありません
+
+## 貢献
+
+[CONTRIBUTING.md](CONTRIBUTING.md) を見てください。Issue と Pull Request は日本語でも英語でも歓迎です。
 
 ## ライセンス
 

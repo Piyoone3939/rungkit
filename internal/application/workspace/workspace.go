@@ -40,6 +40,12 @@ type Exporter interface {
 	Export(p *ladder.Program) (string, error)
 }
 
+// FileEncoder is implemented by exporters whose files are not UTF-8 text
+// (the GX Works3 CSV is UTF-16). Export still returns readable text.
+type FileEncoder interface {
+	EncodeFile(text string) []byte
+}
+
 // ScenarioParser reads scenario text.
 type ScenarioParser interface {
 	ParseScenario(src string) (*scenario.Script, error)
@@ -212,6 +218,18 @@ func (w *Workspace) Export(format string) (string, error) {
 		return "", i18n.Errorf("書き出し形式 %q はありません（使えるもの: %s）", format, strings.Join(w.Formats(), ", "))
 	}
 	return e.Export(p)
+}
+
+// ExportFile converts the program to a format as the bytes of a file.
+func (w *Workspace) ExportFile(format string) ([]byte, error) {
+	out, err := w.Export(format)
+	if err != nil {
+		return nil, err
+	}
+	if enc, ok := w.exporters[format].(FileEncoder); ok {
+		return enc.EncodeFile(out), nil
+	}
+	return []byte(out), nil
 }
 
 // ScenarioOptions control RunScenario.

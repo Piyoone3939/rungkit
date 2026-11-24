@@ -1,0 +1,24 @@
+profile iec
+
+sym Start : BOOL @ %IX0.0 "起動ボタン"
+sym Stop : BOOL @ %IX0.1 "停止ボタン"
+sym Motor : BOOL @ %QX0.0 "モータ"
+sym Lamp : BOOL @ %QX0.1 "運転ランプ（2秒後に点灯）"
+sym Delay : TON "点灯までの遅れ"
+sym Count : INT "起動回数"
+
+rung "運転 自己保持" {
+  (Start | Motor) & !Stop -> OUT(Motor)
+}
+
+rung "2秒後にランプ" {
+  Motor -> TON(Delay, T#2s)
+}
+
+rung {
+  Delay -> OUT(Lamp)
+}
+
+rung "起動回数を数える" {
+  rise(Motor) -> ADD(Count, 1, Count)
+}

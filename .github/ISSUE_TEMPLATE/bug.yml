@@ -1,0 +1,22 @@
+name: Bug report / 不具合の報告
+description: Something does not work as expected / 期待どおりに動かない
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened / 何が起きたか
+      description: What you did, what you expected, what you got / 何をして、何を期待し、何が起きたか
+    validations:
+      required: true
+  - type: textarea
+    id: program
+    attributes:
+      label: Program or steps to reproduce / 再現するプログラムや手順
+      description: The smallest .ldt / .ldtest that shows it, and the command or MCP call / 再現する最小の .ldt・.ldtest と、コマンドや MCP の呼び出し
+      render: text
+  - type: input
+    id: version
+    attributes:
+      label: rungkit version and OS / rungkit のバージョンと OS
+      placeholder: "v0.1.0, Windows 11"

@@ -21,6 +21,7 @@ archives:
       - LICENSE-APACHE
       - README.md
       - README.ja.md
+      - examples/*
       - examples/**/*
 
 checksum:

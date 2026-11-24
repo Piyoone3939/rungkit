@@ -70,6 +70,7 @@ The text grammar cannot produce trees that break these rules; trees from JSON ar
 - Conditions: the first item is `LD`, series `AND`, parallel `OR`; blocks of several items combine with `ANB` / `ORB`
 - Output branches: `MPS` only when a branch other than the last adds conditions, `MRD` in between, `MPP` to restore for the last
 - An unconditional output uses `LD SM400` (always ON)
+- The same sequence is written in two layouts: `melsec` (one instruction per line, for reading and diffs) and `gxw3` (the CSV GX Works3 imports with Edit > Import File, written as GX Works3 writes it: UTF-16 LE with a BOM, tab separated, every item quoted, CR LF; project name, module type and column headers on the first three lines; from the second argument on, each argument goes on its own row in the device column; rung comments become line statements. Source: the CSV import section of the GX Works3 Operating Manual)
 
 ## Structured Text
 
@@ -83,8 +84,9 @@ The text grammar cannot produce trees that break these rules; trees from JSON ar
 
 - Virtual time with a fixed scan time (10 ms by default, `scan` in `.ldtest`); every run gives the same result
 - Every instruction runs every scan (no short-circuit). Edge contacts and pulse instructions keep their previous input per element ID
-- A timer starts measuring in the scan its input turns on (elapsed 0) and adds one scan time per scan, so its output appears after the preset plus one scan, as on a real PLC
-- MELSEC counters stop at the set value; IEC CTU counts up to 32767
+- MELSEC timers (`T`, low-speed 100 ms) imitate the CPU: a 100 ms clock runs on its own, END processing counts the ticks that passed during the scan, and the next execution of `OUT T` adds them to the current value while the coil is on, including the first scan it is on (CPU Module User's Manual (Application), "Accuracy of timers"). An input turning on in the middle of a tick turns the timer on up to 100 ms before "preset plus one scan"
+- IEC timers start measuring in the scan the input turns on (elapsed 0) and add one scan time per scan, so the output appears after the preset plus one scan
+- MELSEC counters stop at the set value (a set value of 0 counts as 1); IEC CTU counts up to 32767
 - Runtime errors (division by zero, …) name the scan, rung and element
 - Every `.ldtest` test runs on a fresh simulator; results are available as JSON (`run_scenario` returns them as is)
 
@@ -115,11 +117,17 @@ The text grammar cannot produce trees that break these rules; trees from JSON ar
 - For Beremiz builds: every wire carries its path (`position`; optional in the schema but required by Beremiz), a default task is written, and contacts on timers and counters read `T0.Q`
 - Beremiz runs coils in position order and blocks such as timers afterwards. `executionOrderId` applies only to blocks, so rung order cannot be enforced ([eval/interop](../eval/interop/README.md))
 
+## Drawings and the browser version
+
+- `render` lays a rung out on a grid from the tree (series to the right, parallel downward, outputs pushed to the right rail) and draws the same layout as text (`ascii`) and SVG (`svg`). SVG elements carry `data-elem` (the element ID) and a `<title>` with the device comment; colors use `currentColor`, so drawings follow the page theme
+- The browser version is Go compiled to WebAssembly (`cmd/rungkit-web`). With no file system it uses `filestore.Memory` and the unchanged workspace. `internal/presentation/web` exposes functions to JavaScript (update, export, format, runScenario, … returning JSON); the page (`web/`) only calls them
+- Input is kept in the browser's localStorage and sent nowhere. Clicking an element in the drawing jumps to its line in the `.ldt`
+- This version edits text and redraws; editing on the drawing itself is the next step
+
 ## Next
 
-1. Confirm and support the GX Works3 import format ([how to check](verify-melsec.en.md))
-2. Mitsubishi FX5 profile (octal X/Y)
-3. Browser UI (ladder view and editing, WebAssembly)
+1. Import the `-to gxw3` CSV into GX Works3 itself ([how to check](verify-melsec.en.md))
+2. Publish the browser version on GitHub Pages (once the repository is public)
+3. Edit on the drawing in the browser version (today the text is edited and the drawing follows)
 4. Check PLCopen XML in OpenPLC Editor v4 and CODESYS themselves (Beremiz and matiec are done: [eval/interop](../eval/interop/README.md))
 5. Formal verification of safety properties (ESBMC-PLC and others)
-6. Ladder pictures and ASCII view (`render`)

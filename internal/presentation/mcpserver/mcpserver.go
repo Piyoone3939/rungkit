@@ -73,7 +73,7 @@ func New(ws *workspace.Workspace, version string) *mcp.Server {
 	mcp.AddTool(s, &mcp.Tool{Name: "edit_program", Description: "Apply edit commands atomically (all or nothing, one undo step). Commands:\n" + editing.Ops + "\nReturns the changed rungs with IDs, new element IDs and diagnostics."}, h.edit)
 	mcp.AddTool(s, &mcp.Tool{Name: "undo", Description: "Revert the last edit_program call."}, h.undo)
 	mcp.AddTool(s, &mcp.Tool{Name: "redo", Description: "Re-apply the last undone edit."}, h.redo)
-	mcp.AddTool(s, &mcp.Tool{Name: "export_program", Description: "Convert the program: melsec (Mitsubishi instruction list), st (IEC Structured Text), plcopen (PLCopen XML TC6 v2.01 Ladder Diagram), json, ldt."}, h.export)
+	mcp.AddTool(s, &mcp.Tool{Name: "export_program", Description: "Convert the program: melsec (Mitsubishi instruction list), gxw3 (the same list as the CSV GX Works3 imports with Edit > Import File; returned here as text, while the file itself is UTF-16, written by `rungkit export -to gxw3 -o FILE`), st (IEC Structured Text), plcopen (PLCopen XML TC6 v2.01 Ladder Diagram), ascii (the ladder drawn as text, handy to show a person), svg, json, ldt."}, h.export)
 	mcp.AddTool(s, &mcp.Tool{Name: "run_scenario", Description: "Run test scenarios on the scan simulator (virtual time, deterministic). Give the scenario text, or a path to a .ldtest file. With trace, watched values are returned for the first scan, every scan where one changed, and the last scan (at most 200 records per test)."}, h.runScenario)
 	return s
 }
@@ -106,7 +106,7 @@ type editIn struct {
 }
 
 type exportIn struct {
-	Format string `json:"format" jsonschema:"melsec, st, plcopen, json or ldt"`
+	Format string `json:"format" jsonschema:"melsec, st, plcopen, ascii, svg, json or ldt"`
 }
 
 type scenarioIn struct {

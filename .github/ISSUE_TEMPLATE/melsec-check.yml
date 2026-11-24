@@ -1,0 +1,38 @@
+name: MELSEC check result / 三菱の実物との突き合わせ結果
+description: Results of docs/verify-melsec.md with GX Works3 / GX Works3 での確認結果
+labels: [melsec, verification]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Procedure / 手順: [docs/verify-melsec.md](https://github.com/Piyoone3939/rungkit/blob/main/docs/verify-melsec.md)
+  - type: input
+    id: env
+    attributes:
+      label: GX Works3 version, CPU type, timer setting / GX Works3 のバージョン・機種・タイマ時限設定
+      placeholder: "1.xxxY trial, R04CPU, low-speed timer 100ms"
+    validations:
+      required: true
+  - type: textarea
+    id: a
+    attributes:
+      label: "A: instruction list / 命令の並び"
+      description: Import menu and accepted format, instructions that failed, convert errors, rungs drawn differently / 取り込みメニューと通った形式、入力できなかった命令、変換エラー、形が違ったラング
+  - type: textarea
+    id: b
+    attributes:
+      label: "B: simulator values / シミュレーターの値"
+      value: |
+        V1 D10 =
+        V2 C0 value = , C0 contact =
+        V3 D20 = , D21 =
+        V4 D30 = , D31 =
+        V5 D40 =
+        V6 Y0 = (X2 only) → (X3 too)
+        V7 T1 value when ON = , timing =
+        V8 M5 = , M7 =
+        V9 D50 =
+  - type: textarea
+    id: notes
+    attributes:
+      label: Notes / 気づいたこと

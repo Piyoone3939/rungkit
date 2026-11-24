@@ -128,3 +128,17 @@ func TestBadLabel(t *testing.T) {
 		t.Fatalf("%+v", ds)
 	}
 }
+
+func TestFX5OctalXY(t *testing.T) {
+	cases := []struct{ body, want string }{
+		{`X7 & X10 -> OUT(Y17)`, ""},
+		{`X8 -> OUT(Y0)`, "E_BAD_OPERAND"},
+		{`X0 -> OUT(Y19)`, "E_BAD_OPERAND"},
+		{`X0 & B1F -> MOV(K1, W1F)`, ""}, // B/W stay hexadecimal
+	}
+	for _, c := range cases {
+		if got := codes(t, "profile melsec-fx5\nrung { "+c.body+" }"); got != c.want {
+			t.Errorf("%s: got %q want %q", c.body, got, c.want)
+		}
+	}
+}

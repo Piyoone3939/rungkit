@@ -21,6 +21,9 @@ import (
 	"github.com/Piyoone3939/rungkit/internal/domain/profile"
 )
 
+// melsecTimerMs is the MELSEC low-speed timer limit (the default 100 ms).
+const melsecTimerMs = 100
+
 // DefaultScanMs is the scan time used unless SetScanTime is called.
 const DefaultScanMs = 10
 
@@ -65,6 +68,7 @@ type Sim struct {
 
 	scans    int
 	now      int64
+	ticks    int64 // MELSEC: 100 ms timer ticks counted by the last END
 	bits     map[string]bool
 	words    map[string]int64
 	timers   map[string]*timerState
@@ -99,7 +103,7 @@ func New(p *ladder.Program) (*Sim, error) {
 
 // Reset clears memory, timers, forces, the trace and the clock.
 func (s *Sim) Reset() {
-	s.scans, s.now = 0, 0
+	s.scans, s.now, s.ticks = 0, 0, 0
 	s.bits = map[string]bool{}
 	s.words = map[string]int64{}
 	s.timers = map[string]*timerState{}
@@ -176,6 +180,10 @@ func (s *Sim) Scan() error {
 	}
 	s.scans++
 	s.now += s.scanMs
+	// END processing: MELSEC counts the timer ticks (100 ms, the default
+	// low-speed timer limit) that passed during the scan; OUT T adds them
+	// in the next scan.
+	s.ticks = s.now/melsecTimerMs - (s.now-s.scanMs)/melsecTimerMs
 	if len(s.watch) > 0 {
 		rec := Record{Scan: s.scans, TimeMs: s.now, Values: make([]int64, len(s.watch))}
 		for i, op := range s.watch {
@@ -354,6 +362,23 @@ func (s *Sim) execTimer(v *ladder.Timer, in bool) error {
 	dt := s.scanMs
 	switch v.Kind {
 	case "TON":
+		if s.melsec {
+			// MELSEC OUT T: while the coil is on, each execution adds the
+			// ticks counted by the last END, from the first scan on. The
+			// 100 ms clock runs regardless of the timer, so the delay
+			// depends on where in the tick the input turned on, as on a
+			// real CPU (CPU module user's manual, "Accuracy of timers").
+			if in {
+				t.et += s.ticks * melsecTimerMs
+				if t.et > pt {
+					t.et = pt
+				}
+				t.q = t.et >= pt
+			} else {
+				t.et, t.q = 0, false
+			}
+			break
+		}
 		if in {
 			if t.prevIn {
 				t.et += dt
@@ -426,6 +451,9 @@ func (s *Sim) execCounter(v *ladder.Counter, power bool) error {
 	pv, err := s.read(v.Preset)
 	if err != nil {
 		return err
+	}
+	if s.melsec && pv == 0 {
+		pv = 1 // MELSEC treats a set value of 0 as 1
 	}
 	c := s.counter(v.Instance)
 	if power && !c.prev {

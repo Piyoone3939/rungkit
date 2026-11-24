@@ -89,3 +89,31 @@ func TestRungComment(t *testing.T) {
 		t.Errorf("got %q want %q", out, want)
 	}
 }
+
+func TestCSV(t *testing.T) {
+	p, _, err := ldt.Parse("profile melsec-iqr\nrung \"start \\\"A\\\"\" {\n X0 -> TON(T0, K50)\n}\n")
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, err := CSV(p, "Conveyor")
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := strings.Join([]string{
+		`"Conveyor"`,
+		`"Module Type Information:"	"RCPU R08"`,
+		`"Step No."	"Line Statement"	"Instruction"	"I/O (Device)"	"Blank"	"PI Statement"	"Note"`,
+		`"0"	"start ""A"""	""	""	""	""	""`,
+		`"1"	""	"LD"	"X0"	""	""	""`,
+		`"2"	""	"OUT"	"T0"	""	""	""`,
+		`"3"	""	""	"K50"	""	""	""`,
+		`"4"	""	"END"	""	""	""	""`,
+	}, "\r\n") + "\r\n"
+	if got != want {
+		t.Fatalf("got\n%s\nwant\n%s", got, want)
+	}
+	b := EncodeFile("A\"あ")
+	if string(b[:2]) != "\xff\xfe" || len(b) != 2+2*3 || b[2] != 'A' || b[3] != 0 || b[6] != 0x42 || b[7] != 0x30 {
+		t.Fatalf("UTF-16 LE with BOM expected: % x", b)
+	}
+}

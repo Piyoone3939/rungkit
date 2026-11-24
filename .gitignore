@@ -1,2 +1,6 @@
 *.exe
 /rungkit
+/dist/
+
+# Vendor manuals kept locally for reference (copyrighted; never commit)
+/*.pdf

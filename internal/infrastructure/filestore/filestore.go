@@ -96,6 +96,11 @@ func (s Store) LoadProgram(path string) (*ladder.Program, workspace.Positions, e
 	if err != nil {
 		return nil, nil, err
 	}
+	return decode(path, data)
+}
+
+// decode reads program bytes in the format the extension names.
+func decode(path string, data []byte) (*ladder.Program, workspace.Positions, error) {
 	switch ext(path) {
 	case ".json":
 		p, err := jsoncodec.Unmarshal(data)
@@ -127,39 +132,48 @@ func (s Store) LoadProgram(path string) (*ladder.Program, workspace.Positions, e
 // SaveProgram writes a .ldt, .json or PLCopen .xml program. Other extensions are refused so
 // a mistyped path cannot overwrite an unrelated file.
 func (s Store) SaveProgram(path string, p *ladder.Program) error {
-	var out []byte
-	switch ext(path) {
-	case ".ldt":
-		text, err := ldt.Format(p)
-		if err != nil {
-			return err
-		}
-		// Never write a file rungkit itself could not read back.
-		if _, _, err := ldt.Parse(text); err != nil {
-			return i18n.Errorf("保存すると読み戻せない内容になるので保存しません: %w", err)
-		}
-		out = []byte(text)
-	case ".json":
-		b, err := jsoncodec.Marshal(p)
-		if err != nil {
-			return err
-		}
-		out = append(b, '\n')
-	case ".xml":
-		name := strings.TrimSuffix(filepath.Base(path), filepath.Ext(path))
-		text, err := plcopen.Export(p, name, time.Now())
-		if err != nil {
-			return err
-		}
-		out = []byte(text)
-	default:
-		return i18n.Errorf("保存先は .ldt / .json / .xml（PLCopen）のファイルにします（%s）", path)
+	out, err := encode(path, p)
+	if err != nil {
+		return err
 	}
 	target, err := s.resolve(path)
 	if err != nil {
 		return err
 	}
 	return os.WriteFile(target, out, 0o644)
+}
+
+// encode writes p in the format the extension names.
+func encode(path string, p *ladder.Program) ([]byte, error) {
+	var out []byte
+	switch ext(path) {
+	case ".ldt":
+		text, err := ldt.Format(p)
+		if err != nil {
+			return nil, err
+		}
+		// Never write a file rungkit itself could not read back.
+		if _, _, err := ldt.Parse(text); err != nil {
+			return nil, i18n.Errorf("保存すると読み戻せない内容になるので保存しません: %w", err)
+		}
+		out = []byte(text)
+	case ".json":
+		b, err := jsoncodec.Marshal(p)
+		if err != nil {
+			return nil, err
+		}
+		out = append(b, '\n')
+	case ".xml":
+		name := strings.TrimSuffix(filepath.Base(path), filepath.Ext(path))
+		text, err := plcopen.Export(p, name, time.Now())
+		if err != nil {
+			return nil, err
+		}
+		out = []byte(text)
+	default:
+		return nil, i18n.Errorf("保存先は .ldt / .json / .xml（PLCopen）のファイルにします（%s）", path)
+	}
+	return out, nil
 }
 
 // ReadText reads a text file.

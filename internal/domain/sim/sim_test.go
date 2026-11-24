@@ -131,6 +131,46 @@ func TestTONTiming(t *testing.T) {
 	}
 }
 
+// A MELSEC timer adds 100 ms ticks of a clock that runs on its own, so an
+// input turning on in the middle of a tick reaches the preset sooner than
+// the preset after it turned on (CPU module user's manual, accuracy of
+// timers: up to one scan plus 100 ms early).
+func TestTONTicksRunFreely(t *testing.T) {
+	s := newSim(t, `rung { X0 -> TON(T0, K10) }`) // 1 s, 10 ms scans
+	must(t, s.Run(5))                             // 50 ms into the first tick
+	must(t, s.Set("X0", 1))
+	must(t, s.Run(95)) // input on for 950 ms, ticks at 100..900 ms (9)
+	if get(t, s, "T0") != 0 || get(t, s, "T0.ET") != 900 {
+		t.Fatalf("after 950 ms: T0=%d ET=%d", get(t, s, "T0"), get(t, s, "T0.ET"))
+	}
+	must(t, s.Run(1)) // the tick at 1000 ms is added in this scan
+	if get(t, s, "T0") != 1 {
+		t.Fatal("T0 should be on 960 ms after its input")
+	}
+}
+
+func TestTONPresetZero(t *testing.T) {
+	s := newSim(t, `rung { X0 -> TON(T0, K0) }`)
+	must(t, s.Set("X0", 1))
+	must(t, s.Run(1))
+	if get(t, s, "T0") != 1 {
+		t.Fatal("a set value of 0 is up at the first execution")
+	}
+}
+
+func TestCounterPresetZeroIsOne(t *testing.T) {
+	s := newSim(t, `rung { X0 -> CTU(C0, K0) }`)
+	must(t, s.Run(1))
+	if get(t, s, "C0") != 0 {
+		t.Fatal("MELSEC treats a set value of 0 as 1, so nothing is counted yet")
+	}
+	must(t, s.Set("X0", 1))
+	must(t, s.Run(1))
+	if get(t, s, "C0") != 1 || get(t, s, "C0.CV") != 1 {
+		t.Fatalf("one count reaches it: CV=%d", get(t, s, "C0.CV"))
+	}
+}
+
 func TestTimerPresetFromWordAndReset(t *testing.T) {
 	s := newSim(t, "rung { X0 -> TON(T0, D0) }\nrung { X1 -> RST(T0) }")
 	must(t, s.Set("D0", 3)) // 300 ms

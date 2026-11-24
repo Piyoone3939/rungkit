@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>rungkit</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="bar">
+  <div class="brand"><strong>rungkit</strong> <span data-i18n="tagline">ラダーをテキストで書き、その場で図と動作を確かめる</span></div>
+  <div class="tools">
+    <label class="sr" for="example" data-i18n="example">例</label>
+    <select id="example">
+      <option value="" data-i18n="example">例を開く</option>
+      <option value="conveyor" data-i18n="exConveyor">コンベア（三菱）</option>
+      <option value="melsec-semantics" data-i18n="exVerify">三菱の動作確認用</option>
+      <option value="iec" data-i18n="exIec">IEC の例</option>
+    </select>
+    <button id="open" data-i18n="open">開く</button>
+    <input id="file" type="file" accept=".ldt,.json,.xml" hidden>
+    <button id="save" data-i18n="save">.ldt を保存</button>
+    <button id="fmt" data-i18n="format">整形</button>
+    <select id="format" aria-label="export format"></select>
+    <button id="export" data-i18n="export">書き出し</button>
+    <button id="lang" title="日本語 / English">EN</button>
+  </div>
+</header>
+
+<main>
+  <section class="pane editor">
+    <div class="pane-head"><span data-i18n="program">プログラム（.ldt）</span><span id="status" class="status"></span></div>
+    <textarea id="src" spellcheck="false" wrap="off" aria-label="program"></textarea>
+    <ul id="diags" class="diags" aria-live="polite"></ul>
+  </section>
+  <section class="pane drawing">
+    <div class="pane-head"><span data-i18n="ladder">ラダー図</span><span class="hint" data-i18n="clickHint">要素をクリックすると、その行に移動します</span></div>
+    <div id="svg" class="svg"></div>
+  </section>
+  <section class="pane scenario">
+    <div class="pane-head">
+      <span data-i18n="scenario">シナリオ（.ldtest）</span>
+      <label class="check"><input id="trace" type="checkbox"> <span data-i18n="trace">記録を表示</span></label>
+      <button id="run" class="primary" data-i18n="run">実行</button>
+    </div>
+    <div class="scenario-body">
+      <textarea id="scn" spellcheck="false" wrap="off" aria-label="scenario"></textarea>
+      <div id="results" class="results" aria-live="polite"></div>
+    </div>
+  </section>
+</main>
+
+<footer class="foot">
+  <span data-i18n="foot">ブラウザの中だけで動きます。入力はこの端末に保存されます。</span>
+  <a href="https://github.com/Piyoone3939/rungkit">GitHub</a>
+  <span id="ver"></span>
+</footer>
+
+<script src="wasm_exec.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

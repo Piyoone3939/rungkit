@@ -1,0 +1,22 @@
+scan 10ms
+
+test "起動して2秒後にランプが点く" {
+  set Start on
+  run 1
+  set Start off
+  expect Motor on
+  run 1s
+  expect Lamp off
+  wait Lamp on within 1100ms
+  expect Count 1
+}
+
+test "停止ボタンで止まる" {
+  set Start on
+  run 1
+  set Start off
+  set Stop on
+  run 1
+  expect Motor off
+  expect Lamp off
+}

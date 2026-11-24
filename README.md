@@ -5,7 +5,20 @@ English | [日本語](README.ja.md)
 An AI-native toolkit for PLC ladder programs.
 rungkit keeps a ladder diagram as a series-parallel tree, lets an AI agent edit it over MCP, and lets the agent check its own work on a scan simulator. It supports Mitsubishi (MELSEC iQ-R) and IEC 61131-3, and reads and writes ladder text (`.ldt`), JSON, the MELSEC instruction list, Structured Text and PLCopen XML.
 
-> Status: prototype (0.x). Editing commands, simulator, MCP server and PLCopen XML are in place; the browser UI comes next.
+> Status: prototype (0.x). Editing commands, simulator, MCP server, PLCopen XML and a browser version are in place.
+
+![rungkit in the browser: ladder text on the left, the diagram on the right, scenario results below](docs/images/web.jpg)
+
+## Try it in the browser
+
+The browser version runs entirely in the page (Go compiled to WebAssembly): write `.ldt` on the left and see the ladder diagram and diagnostics as you type, click an element to jump to its line, run `.ldtest` scenarios with a trace, and export to every format. Nothing is sent anywhere; your input stays in the browser.
+
+```sh
+sh web/build.sh                          # builds web/dist
+python -m http.server -d web/dist 8000   # then open http://localhost:8000
+```
+
+It will be published on GitHub Pages with each release ([.github/workflows/pages.yml](.github/workflows/pages.yml)).
 
 ## Install
 
@@ -34,7 +47,7 @@ Tools:
 | `undo` / `redo` | undo / redo |
 | `check_program` | errors and warnings with codes, rung and element IDs |
 | `run_scenario` | run scenarios on the simulator (text or a `.ldtest` path; `trace` records every scan) |
-| `export_program` | write `melsec` / `st` / `plcopen` / `json` / `ldt` |
+| `export_program` | write `melsec` / `gxw3` / `st` / `plcopen` / `json` / `ldt` / `ascii` / `svg` |
 
 Edit commands (`ops` of `edit_program`):
 
@@ -100,8 +113,10 @@ Example: [examples/conveyor.ldt](examples/conveyor.ldt)
 rungkit check examples/conveyor.ldt          # errors and warnings
 rungkit fmt -w examples/conveyor.ldt         # canonical form
 rungkit export -to melsec examples/conveyor.ldt
+rungkit export -to gxw3 -o conveyor.csv examples/conveyor.ldt   # CSV for GX Works3 (Edit > Import File)
 rungkit export -to st examples/conveyor.ldt
 rungkit export -to json examples/conveyor.ldt
+rungkit export -to ascii examples/conveyor.ldt   # the ladder drawn as text (svg for a picture)
 ```
 
 `check` gives every problem a code (`E_READ_ONLY`, …) and a line and column, so an agent can fix them one by one.
@@ -166,7 +181,7 @@ The simulator follows ladder semantics:
 - Rungs run top to bottom and every instruction runs every scan (no short-circuit), so edges and timers never miss an input
 - Outputs are written immediately; later rungs in the same scan see them
 - An output branch uses the power flow from before the branch (like MELSEC MPS)
-- MELSEC `T` counts 100 ms, counters stop at the set value, `MUL` writes the high word to D(n+1), `DIV` the remainder to D(n+1), words wrap at 16 bits
+- MELSEC `T` adds ticks of a free-running 100 ms clock each time it runs, as the CPU does, so it may turn on up to 100 ms before "preset + 1 scan"; counters stop at the set value (a set value of 0 counts as 1); `MUL` writes the high word to D(n+1), `DIV` the remainder to D(n+1), words wrap at 16 bits
 - `SM400` (always ON), `SM401` (always OFF), `SM402` (ON for the first scan)
 - Division by zero stops with an error naming the scan, rung and element
 
@@ -175,6 +190,7 @@ The simulator follows ladder semantics:
 | Name | |
 |---|---|
 | `melsec-iqr` | Mitsubishi iQ-R: X/Y/B/W in hexadecimal, `D0.3` bit of word, `K`/`H` constants, timers in 100 ms |
+| `melsec-fx5` | Mitsubishi FX5: like `melsec-iqr`, but X/Y in octal (X0-X7, X10, …) |
 | `iec` | IEC 61131-3: declare with `sym name : type @ address`, `%IX0.0`, `T#5s` |
 
 ## Structure (onion architecture)
@@ -197,9 +213,10 @@ Dependencies point inward only; [internal/architecture_test.go](internal/archite
 | | [plcopen](internal/infrastructure/plcopen/) | PLCopen XML |
 | | [filestore](internal/infrastructure/filestore/) | files (outside the working folder refused for MCP) |
 | | [locale](internal/infrastructure/locale/) | system language |
-| Presentation | [cli](internal/presentation/cli/) / [mcpserver](internal/presentation/mcpserver/) | command line / MCP server |
+| | [render](internal/infrastructure/render/) | ladder drawings as text (`ascii`) and SVG (`svg`) |
+| Presentation | [cli](internal/presentation/cli/) / [mcpserver](internal/presentation/mcpserver/) / [web](internal/presentation/web/) | command line / MCP server / browser bindings |
 | Shared | [i18n](internal/domain/i18n/) | English and Japanese messages (used by every layer; standard library only) |
-| Composition | [cmd/rungkit](cmd/rungkit/) | wires the adapters and starts |
+| Composition | [cmd/rungkit](cmd/rungkit/) / [cmd/rungkit-web](cmd/rungkit-web/) | wire the adapters and start (CLI and MCP / browser) |
 
 - Design: [docs/design.en.md](docs/design.en.md)
 - Decisions (license, distribution, scope): [docs/decisions.en.md](docs/decisions.en.md)
@@ -210,8 +227,12 @@ Dependencies point inward only; [internal/architecture_test.go](internal/archite
 
 - rungkit **does not talk to real PLCs** (no download, monitoring or forcing). Review what it writes and load it with the vendor's tool
 - Check ladder written by an AI with `check` and scenarios before use. Build safety functions such as emergency stops in wiring and safety devices, not in software
-- The MELSEC instruction **sequence** follows the standard conversion rules, but the **file format GX Works3 imports is not confirmed yet** ([how to check](docs/verify-melsec.en.md))
+- The MELSEC instruction sequence follows the standard conversion rules, and the simulator follows Mitsubishi's manuals ([results](docs/verify-melsec.en.md#results-of-c-2026-11-24)). `-to gxw3` writes the CSV GX Works3 imports, following the format in its operating manual, but **importing it into GX Works3 has not been tried yet** ([how to check](docs/verify-melsec.en.md))
 - Mitsubishi Electric, MELSEC, GX Works and others are trademarks of their owners. rungkit is not affiliated with them
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md). Issues and pull requests are welcome in English or Japanese.
 
 ## License
 

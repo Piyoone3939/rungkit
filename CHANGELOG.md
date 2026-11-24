@@ -21,6 +21,12 @@ Formats (`.ldt`, JSON, `.ldtest`, MCP tools) may change while the version is 0.x
 - Verified with real tools in Docker (`eval/interop`): ST compiles with matiec; PLCopen XML builds in Beremiz
 - ST: MELSEC `MUL` writes the 32-bit product to D(n), D(n+1); `DIV` writes the remainder to D(n+1)
 - PLCopen XML: wire paths, a default task configuration, and `T0.Q` for contacts on timers and counters
+- Browser version (Go → WebAssembly, `web/`): edit `.ldt` with a live ladder diagram, diagnostics, scenarios with traces and every export; GitHub Pages workflow
+- Ladder drawings: `export -to ascii` and `export -to svg`
+- `melsec-fx5` profile (octal X/Y)
+- Issue templates (bug, feature, MELSEC check result) and CONTRIBUTING.md; CI builds the browser version
+- `export -to gxw3`: the CSV GX Works3 imports (UTF-16); `export -o FILE` writes the export to a file
+- Simulator checked against Mitsubishi's manuals: MELSEC timers add ticks of a free-running 100 ms clock (they may turn on up to 100 ms earlier than before); a counter set value of 0 counts as 1
 
 ---
 
@@ -45,3 +51,9 @@ Formats (`.ldt`, JSON, `.ldtest`, MCP tools) may change while the version is 0.x
 - 実際のツールで確認（`eval/interop`、Docker）: ST は matiec でコンパイルでき、PLCopen XML は Beremiz でビルドできる
 - ST: 三菱の `MUL` は32ビットの積を D(n)・D(n+1) に、`DIV` は余りを D(n+1) に書く
 - PLCopen XML: 配線の座標、既定のタスク設定、タイマー・カウンタの接点を `T0.Q` で書く
+- ブラウザ版（Go → WebAssembly、`web/`）: `.ldt` を書くとラダー図・エラーがその場で出る。シナリオの記録表示、すべての形式への書き出し。GitHub Pages への公開ワークフロー
+- ラダー図の表示: `export -to ascii` と `export -to svg`
+- `melsec-fx5` プロファイル（X/Y が8進数）
+- Issue テンプレート（不具合・要望・三菱の確認結果）と CONTRIBUTING.md。CI でブラウザ版もビルド
+- `export -to gxw3`: GX Works3 が取り込む CSV（UTF-16）。`export -o FILE` で書き出しをファイルに保存
+- シミュレーターを三菱のマニュアルと照合: 三菱のタイマーは勝手に進む100msの時計の目盛りを足す（これまでより最大100ms早くONになることがある）。カウンタの設定値0は1として扱う
