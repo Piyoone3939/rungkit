@@ -4,6 +4,10 @@
 
 Formats (`.ldt`, JSON, `.ldtest`, MCP tools) may change while the version is 0.x; changes are listed here. See [docs/decisions.en.md](docs/decisions.en.md).
 
+## Unreleased
+
+- Published to the official MCP Registry (`io.github.Piyoone3939/rungkit`); `glama.json` names the maintainer for the Glama directory
+
 ## 0.2.0 (2026-11-24)
 
 - Browser version redesigned: dark engineering-tool look with a light theme, ribbon toolbar, floating panels, status bar
@@ -44,6 +48,10 @@ Formats (`.ldt`, JSON, `.ldtest`, MCP tools) may change while the version is 0.x
 ## 日本語
 
 0.x の間は形式（`.ldt`・JSON・`.ldtest`・MCPツール）を変えることがあり、変えたらここに書きます。[docs/decisions.md](docs/decisions.md) を参照してください。
+
+### 未リリース
+
+- MCP 公式レジストリに登録（`io.github.Piyoone3939/rungkit`）。Glama のディレクトリ向けに管理者を示す `glama.json` を追加
 
 ### 0.2.0（2026-11-24）
 

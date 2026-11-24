@@ -34,6 +34,8 @@ Windows・macOS・Linux 向けの実行ファイルは [GitHub Releases](https:/
 claude mcp add rungkit -- rungkit mcp
 ```
 
+- [MCP 公式レジストリ](https://registry.modelcontextprotocol.io/v0.1/servers?search=rungkit)に `io.github.Piyoone3939/rungkit` として載っています
+- リリースには MCP バンドル（`rungkit-mcp-<os>-<arch>.mcpb`）も付いています。Claude Desktop など MCPB に対応したアプリでは、ファイルを開くだけで入ります
 - `rungkit mcp FILE` のようにファイルを渡すと、開いた状態で起動します
 - MCPサーバーが読み書きできるのは、起動したフォルダの中だけです（`-root DIR` で変えられます）。標準入力（`-`）も使えません
 

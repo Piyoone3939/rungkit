@@ -34,6 +34,8 @@ Or download a binary for Windows, macOS or Linux from [GitHub Releases](https://
 claude mcp add rungkit -- rungkit mcp
 ```
 
+- Listed in the [official MCP Registry](https://registry.modelcontextprotocol.io/v0.1/servers?search=rungkit) as `io.github.Piyoone3939/rungkit`
+- Each release also has MCP Bundles (`rungkit-mcp-<os>-<arch>.mcpb`) that apps supporting MCPB, such as Claude Desktop, install by opening the file
 - `rungkit mcp FILE` starts with FILE open
 - The MCP server reads and writes only inside the folder it was started in (change with `-root DIR`); standard input (`-`) is refused
 
