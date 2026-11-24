@@ -2,6 +2,8 @@
 
 [English](README.md) | 日本語
 
+[![Piyoone3939/rungkit MCP server](https://glama.ai/mcp/servers/Piyoone3939/rungkit/badges/score.svg)](https://glama.ai/mcp/servers/Piyoone3939/rungkit)
+
 AIが操作する前提で作った、PLCのラダープログラム開発環境です。
 ラダー図を「直列・並列の木」として持ち、AIがMCPで編集し、シミュレーターで自分の作業を確かめられます。三菱（MELSEC iQ-R）とIECに対応し、テキスト（`.ldt`）・JSON・三菱のリスト形式・Structured Text・PLCopen XML を読み書きします。
 

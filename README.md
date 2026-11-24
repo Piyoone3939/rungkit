@@ -2,6 +2,8 @@
 
 English | [日本語](README.ja.md)
 
+[![Piyoone3939/rungkit MCP server](https://glama.ai/mcp/servers/Piyoone3939/rungkit/badges/score.svg)](https://glama.ai/mcp/servers/Piyoone3939/rungkit)
+
 An AI-native toolkit for PLC ladder programs.
 rungkit keeps a ladder diagram as a series-parallel tree, lets an AI agent edit it over MCP, and lets the agent check its own work on a scan simulator. It supports Mitsubishi (MELSEC iQ-R) and IEC 61131-3, and reads and writes ladder text (`.ldt`), JSON, the MELSEC instruction list, Structured Text and PLCopen XML.
 
