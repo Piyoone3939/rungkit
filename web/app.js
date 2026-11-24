@@ -13,7 +13,14 @@ const T = {
     tagline: "ラダーをテキストで書き、その場で図と動作を確かめる",
     example: "例を開く", exConveyor: "コンベア（三菱）", exVerify: "三菱の動作確認用", exIec: "IEC の例",
     open: "開く", save: ".ldt を保存", format: "整形", export: "書き出し",
-    program: "プログラム（.ldt）", ladder: "ラダー図", clickHint: "要素をクリックすると、その行に移動します",
+    program: "プログラム（.ldt）", ladder: "ラダー図", clickHint: "要素をクリックして選び、下のボタンで編集します",
+    addRung: "ラング追加", before: "前に条件", after: "後に条件", parallel: "並列に追加", replace: "置き換え",
+    operand: "デバイス変更", delete: "削除", deleteRung: "ラング削除", undo: "元に戻す",
+    selected: (r, e) => e ? `選択中: ${r} / ${e}` : `選択中: ${r}`,
+    askRung: "ラングの式（例: (X0 | Y0) & !X1 -> OUT(Y0)）", askCond: "足す条件（例: !X3、rise(X4)、[D0 >= K10]）",
+    askParallel: "並列に足すもの（条件なら X5、出力の横なら SET(M1) など）", askReplace: "置き換える要素（例: !X2、OUT(Y1)）",
+    askOperand: "新しいデバイス（例: X10）", editFailed: "編集できません: ",
+    dropComments: "図で編集すると、テキストは整形され、// で書いたコメントは消えます（ラングのコメントと sym は残ります）。続けますか？",
     scenario: "シナリオ（.ldtest）", trace: "記録を表示", run: "実行",
     foot: "ブラウザの中だけで動きます。入力はこの端末に保存されます。",
     loading: "読み込み中…", rungs: (n) => `${n} ラング`, errors: (e, w) => `エラー ${e} / 警告 ${w}`,
@@ -24,7 +31,14 @@ const T = {
     tagline: "Write ladder as text; see the diagram and the behavior as you type",
     example: "Open an example", exConveyor: "Conveyor (MELSEC)", exVerify: "MELSEC behavior check", exIec: "IEC example",
     open: "Open", save: "Save .ldt", format: "Format", export: "Export",
-    program: "Program (.ldt)", ladder: "Ladder", clickHint: "Click an element to jump to its line",
+    program: "Program (.ldt)", ladder: "Ladder", clickHint: "Click an element to select it, then edit with the buttons",
+    addRung: "Add rung", before: "Condition before", after: "Condition after", parallel: "Add in parallel", replace: "Replace",
+    operand: "Change device", delete: "Delete", deleteRung: "Delete rung", undo: "Undo",
+    selected: (r, e) => e ? `Selected: ${r} / ${e}` : `Selected: ${r}`,
+    askRung: "Rung (e.g. (X0 | Y0) & !X1 -> OUT(Y0))", askCond: "Condition to add (e.g. !X3, rise(X4), [D0 >= K10])",
+    askParallel: "What to add in parallel (a condition such as X5, or next to an output SET(M1))", askReplace: "Replacement (e.g. !X2, OUT(Y1))",
+    askOperand: "New device (e.g. X10)", editFailed: "Cannot edit: ",
+    dropComments: "Editing on the diagram reformats the text, and // comments are removed (rung comments and sym stay). Continue?",
     scenario: "Scenario (.ldtest)", trace: "Show trace", run: "Run",
     foot: "Runs entirely in your browser. Your input is kept on this device.",
     loading: "Loading…", rungs: (n) => `${n} rungs`, errors: (e, w) => `${e} errors / ${w} warnings`,
@@ -118,6 +132,67 @@ function refresh() {
 
 let timer = 0;
 function scheduleRefresh() { clearTimeout(timer); timer = setTimeout(refresh, 200); }
+
+// ---- editing on the diagram ----
+
+// The diagram edits go through the same edit commands as MCP; the result
+// replaces the text, so the text stays the single source of truth.
+let sel = { rung: "", elem: "" };
+const editHistory = [];
+
+function select(rung, elem) {
+  sel = { rung: rung || "", elem: elem || "" };
+  document.querySelectorAll("#svg .selected").forEach((x) => x.classList.remove("selected"));
+  if (elem) document.querySelector(`#svg g.elem[data-elem="${elem}"]`)?.classList.add("selected");
+  else if (rung) document.querySelector(`#svg g.rung[data-rung="${rung}"]`)?.classList.add("selected");
+  $("sel").textContent = rung ? t("selected", rung, elem) : "";
+  document.querySelectorAll(".edit-bar [data-need]").forEach((b) => {
+    b.disabled = b.dataset.need === "elem" ? !sel.elem : !sel.rung;
+  });
+  $("undo").disabled = editHistory.length === 0;
+}
+
+function applyEdit(ops) {
+  const before = $("src").value;
+  if (/\/\//.test(before) && !editHistory.length && !confirm(t("dropComments"))) return;
+  const r = JSON.parse(rungkit.edit(JSON.stringify(ops)));
+  if (!r.ok) { alert(t("editFailed") + r.error); refresh(); return; }
+  editHistory.push(before);
+  $("src").value = r.text;
+  refresh();
+  select("", "");
+}
+
+function editAction(act) {
+  const ask = (k) => { const v = prompt(t(k)); return v && v.trim() ? v.trim() : null; };
+  let text;
+  switch (act) {
+    case "addRung":
+      if ((text = ask("askRung"))) applyEdit([{ op: "add_rung", text, after: sel.rung }]);
+      break;
+    case "before": case "after":
+      if ((text = ask("askCond"))) applyEdit([{ op: "insert_series", target: sel.elem, position: act, text }]);
+      break;
+    case "parallel":
+      if ((text = ask("askParallel"))) applyEdit([{ op: "insert_parallel", target: sel.elem, text }]);
+      break;
+    case "replace":
+      if ((text = ask("askReplace"))) applyEdit([{ op: "replace_element", target: sel.elem, text }]);
+      break;
+    case "operand":
+      if ((text = ask("askOperand"))) applyEdit([{ op: "set_operand", target: sel.elem, operand: text }]);
+      break;
+    case "delete":
+      applyEdit([{ op: "delete_element", target: sel.elem }]);
+      break;
+    case "deleteRung":
+      applyEdit([{ op: "delete_rung", rung: sel.rung }]);
+      break;
+    case "undo":
+      if (editHistory.length) { $("src").value = editHistory.pop(); refresh(); select("", ""); }
+      break;
+  }
+}
 
 // ---- scenarios ----
 
@@ -224,12 +299,16 @@ function wire() {
   };
   $("lang").onclick = () => { lang = lang === "ja" ? "en" : "ja"; store.set("lang", lang); applyLanguage(); };
   $("svg").addEventListener("click", (e) => {
-    const g = e.target.closest("g.elem"); if (!g) return;
-    document.querySelectorAll("#svg g.elem.selected").forEach((x) => x.classList.remove("selected"));
-    g.classList.add("selected");
+    const g = e.target.closest("g.elem");
+    const rung = e.target.closest("g.rung")?.dataset.rung || "";
+    if (!g) { select(rung, ""); return; }
+    select(rung, g.dataset.elem);
     const p = positions[g.dataset.elem];
     if (p) jumpTo($("src"), p[0], p[1]);
   });
+  document.querySelectorAll(".edit-bar button").forEach((b) => { b.onclick = () => editAction(b.dataset.act); });
+  $("src").addEventListener("input", () => select("", ""));
+  select("", "");
 }
 
 async function start() {

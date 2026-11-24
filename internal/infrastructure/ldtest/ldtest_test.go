@@ -172,3 +172,16 @@ func TestFriendlyForms(t *testing.T) {
 		t.Errorf("T#1.5s = %d", ms)
 	}
 }
+
+func TestHashComments(t *testing.T) {
+	rs := run(t, "rung { [D0 = H10] -> MOV(D0, D1) }", `# a comment line
+test "hash" {
+  # inside a test
+  set D0 16#10   # after a step; 16#10 stays a value
+  run 1
+  expect D1 16
+}`)
+	if !rs[0].Pass {
+		t.Fatal(rs[0].Msg)
+	}
+}

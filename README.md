@@ -7,18 +7,18 @@ rungkit keeps a ladder diagram as a series-parallel tree, lets an AI agent edit 
 
 > Status: prototype (0.x). Editing commands, simulator, MCP server, PLCopen XML and a browser version are in place.
 
-![rungkit in the browser: ladder text on the left, the diagram on the right, scenario results below](docs/images/web.jpg)
+![rungkit in the browser: ladder text on the left, the diagram with edit buttons on the right, scenario results below](docs/images/web.jpg)
 
 ## Try it in the browser
 
-The browser version runs entirely in the page (Go compiled to WebAssembly): write `.ldt` on the left and see the ladder diagram and diagnostics as you type, click an element to jump to its line, run `.ldtest` scenarios with a trace, and export to every format. Nothing is sent anywhere; your input stays in the browser.
+The browser version runs entirely in the page (Go compiled to WebAssembly): write `.ldt` on the left and see the ladder diagram and diagnostics as you type, click an element to jump to its line or edit it on the diagram (add conditions before or after, in parallel, replace, delete, add rungs), run `.ldtest` scenarios with a trace, and export to every format. Nothing is sent anywhere; your input stays in the browser.
+
+Open it at **https://piyoone3939.github.io/rungkit/** (updated with each release by [.github/workflows/pages.yml](.github/workflows/pages.yml)), or build it yourself:
 
 ```sh
 sh web/build.sh                          # builds web/dist
 python -m http.server -d web/dist 8000   # then open http://localhost:8000
 ```
-
-It will be published on GitHub Pages with each release ([.github/workflows/pages.yml](.github/workflows/pages.yml)).
 
 ## Install
 
@@ -26,7 +26,7 @@ It will be published on GitHub Pages with each release ([.github/workflows/pages
 go install github.com/Piyoone3939/rungkit/cmd/rungkit@latest
 ```
 
-Binaries for each OS will be on GitHub Releases once the project is public.
+Or download a binary for Windows, macOS or Linux from [GitHub Releases](https://github.com/Piyoone3939/rungkit/releases).
 
 ## Use it from an AI (MCP)
 
@@ -134,6 +134,7 @@ rungkit check conveyor.xml          # .xml opens directly (fmt / test / mcp too)
 
 - Exports validate against the official schema (tc6_xml_v201.xsd) and build as is in Beremiz ([procedure and results](eval/interop/README.md)); a default 10 ms task is included
 - Beremiz runs timer and counter calls after the coils, so a rung reading a timer sees it one scan later than on MELSEC; use the ST export for rung-by-rung semantics
+- OpenPLC Editor v4: its importer was read against rungkit's export (not run yet). Rungs, contacts, coils, timers and instructions match its structure; a rung with a comparison should import with OpenPLC's own layout warning ([details](eval/interop/README.md#openplc-editor-v4-source-review--openplc-editor-v4ソースを読んで確認))
 - Supported: contacts (NO/NC/rising/falling), coils (set/reset/pulse), TON/TOF/TP/CTU, comparisons (EQ/NE/LT/LE/GT/GE), MOVE/ADD/SUB/MUL/DIV, pulse instructions (through R_TRIG), rung comments
 - Import turns the wiring graph back into a series-parallel tree; chained coils and wired ORs work. Circuits that are not series-parallel (bridges) are refused with `E_NON_SERIES_PARALLEL`
 - PLCopen is IEC, so melsec programs are written with IEC spellings (`K10` → `10`, `H1F` → `16#1F`, timer `K50` → `T#5000ms`) and the profile is kept in `addData` to restore MELSEC spellings on import
@@ -167,6 +168,7 @@ test "counts a part 5 s after it arrives" {
 | `expect OP value` | check the value now |
 | `wait OP value within 6s` | run until the value appears; fail after the time |
 | `watch OP...` | record after every scan |
+| `// ...` or `# ...` | comment |
 
 `T0.ET` (timer elapsed time) and `C0.CV` (counter value) can be read too. Every test starts from a fresh state.
 

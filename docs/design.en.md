@@ -122,12 +122,12 @@ The text grammar cannot produce trees that break these rules; trees from JSON ar
 - `render` lays a rung out on a grid from the tree (series to the right, parallel downward, outputs pushed to the right rail) and draws the same layout as text (`ascii`) and SVG (`svg`). SVG elements carry `data-elem` (the element ID) and a `<title>` with the device comment; colors use `currentColor`, so drawings follow the page theme
 - The browser version is Go compiled to WebAssembly (`cmd/rungkit-web`). With no file system it uses `filestore.Memory` and the unchanged workspace. `internal/presentation/web` exposes functions to JavaScript (update, export, format, runScenario, … returning JSON); the page (`web/`) only calls them
 - Input is kept in the browser's localStorage and sent nowhere. Clicking an element in the drawing jumps to its line in the `.ldt`
-- This version edits text and redraws; editing on the drawing itself is the next step
+- The drawing can be edited too: click an element or a rung to select it, then use the buttons (condition before/after, add in parallel, replace, change device, delete, add/delete rung). They run the same edit commands as MCP (`rungkit.edit`) and write the result back to the text. The text stays the single source, so editing on the drawing drops `//` comments (the page asks first). Undo keeps a history of the text in the page
 
 ## Next
 
 1. Import the `-to gxw3` CSV into GX Works3 itself ([how to check](verify-melsec.en.md))
 2. Publish the browser version on GitHub Pages (once the repository is public)
-3. Edit on the drawing in the browser version (today the text is edited and the drawing follows)
-4. Check PLCopen XML in OpenPLC Editor v4 and CODESYS themselves (Beremiz and matiec are done: [eval/interop](../eval/interop/README.md))
+3. Grow editing on the drawing from buttons and prompts to dragging and a parts palette
+4. Check PLCopen XML in OpenPLC Editor v4 itself (its importer was reviewed) and CODESYS (Beremiz and matiec are done: [eval/interop](../eval/interop/README.md))
 5. Formal verification of safety properties (ESBMC-PLC and others)

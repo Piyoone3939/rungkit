@@ -4,7 +4,7 @@
 
 Formats (`.ldt`, JSON, `.ldtest`, MCP tools) may change while the version is 0.x; changes are listed here. See [docs/decisions.en.md](docs/decisions.en.md).
 
-## Unreleased
+## 0.1.0 (2026-11-24)
 
 - Ladder text format (`.ldt`), JSON, checks with diagnostic codes
 - MELSEC instruction list and Structured Text export
@@ -26,6 +26,10 @@ Formats (`.ldt`, JSON, `.ldtest`, MCP tools) may change while the version is 0.x
 - `melsec-fx5` profile (octal X/Y)
 - Issue templates (bug, feature, MELSEC check result) and CONTRIBUTING.md; CI builds the browser version
 - `export -to gxw3`: the CSV GX Works3 imports (UTF-16); `export -o FILE` writes the export to a file
+- Scenarios accept `#` comments
+- Agent evaluation harness works with recent Claude Code on Windows; Haiku passes all five tasks again after the timer change
+- Browser version: edit on the diagram (select an element or rung, then add, replace or delete; undo)
+- PLCopen XML reviewed against OpenPLC Editor v4's importer (`eval/interop`)
 - Simulator checked against Mitsubishi's manuals: MELSEC timers add ticks of a free-running 100 ms clock (they may turn on up to 100 ms earlier than before); a counter set value of 0 counts as 1
 
 ---
@@ -34,7 +38,7 @@ Formats (`.ldt`, JSON, `.ldtest`, MCP tools) may change while the version is 0.x
 
 0.x の間は形式（`.ldt`・JSON・`.ldtest`・MCPツール）を変えることがあり、変えたらここに書きます。[docs/decisions.md](docs/decisions.md) を参照してください。
 
-### 未リリース
+### 0.1.0（2026-11-24）
 
 - ラダーのテキスト形式（`.ldt`）、JSON、コード付きの検証
 - 三菱リスト形式と Structured Text への書き出し
@@ -56,4 +60,8 @@ Formats (`.ldt`, JSON, `.ldtest`, MCP tools) may change while the version is 0.x
 - `melsec-fx5` プロファイル（X/Y が8進数）
 - Issue テンプレート（不具合・要望・三菱の確認結果）と CONTRIBUTING.md。CI でブラウザ版もビルド
 - `export -to gxw3`: GX Works3 が取り込む CSV（UTF-16）。`export -o FILE` で書き出しをファイルに保存
+- シナリオで `#` のコメントを受け付ける
+- AIの評価の仕組みを最近の Claude Code（Windows）に対応。タイマー変更後も Haiku が5課題すべて合格
+- ブラウザ版: 図の上で編集（要素やラングを選んで、追加・置き換え・削除。元に戻す）
+- PLCopen XML を OpenPLC Editor v4 の読み込み処理と突き合わせ（`eval/interop`）
 - シミュレーターを三菱のマニュアルと照合: 三菱のタイマーは勝手に進む100msの時計の目盛りを足す（これまでより最大100ms早くONになることがある）。カウンタの設定値0は1として扱う

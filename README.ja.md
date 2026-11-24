@@ -11,14 +11,14 @@ AIが操作する前提で作った、PLCのラダープログラム開発環境
 
 ## ブラウザで試す
 
-ブラウザ版は、ページの中だけで動きます（Go を WebAssembly にしたもの）。左で `.ldt` を書くと、ラダー図とエラーがその場で出ます。図の要素をクリックするとその行に移動し、`.ldtest` のシナリオを記録付きで実行でき、どの形式にも書き出せます。入力はどこにも送られず、ブラウザの中に残ります。
+ブラウザ版は、ページの中だけで動きます（Go を WebAssembly にしたもの）。左で `.ldt` を書くと、ラダー図とエラーがその場で出ます。図の要素をクリックするとその行に移動し、そのまま図の上でも編集できます（条件の追加・並列・置き換え・削除・ラングの追加など）。`.ldtest` のシナリオを記録付きで実行でき、どの形式にも書き出せます。入力はどこにも送られず、ブラウザの中に残ります。
+
+**https://piyoone3939.github.io/rungkit/** で開けます（リリースのたびに [.github/workflows/pages.yml](.github/workflows/pages.yml) が更新します）。手元で作ることもできます:
 
 ```sh
 sh web/build.sh                          # web/dist に作る
 python -m http.server -d web/dist 8000   # http://localhost:8000 を開く
 ```
-
-リリースのたびに GitHub Pages で公開する予定です（[.github/workflows/pages.yml](.github/workflows/pages.yml)）。
 
 ## インストール
 
@@ -26,7 +26,7 @@ python -m http.server -d web/dist 8000   # http://localhost:8000 を開く
 go install github.com/Piyoone3939/rungkit/cmd/rungkit@latest
 ```
 
-公開後は、各OS向けの実行ファイルを GitHub Releases に置きます。
+Windows・macOS・Linux 向けの実行ファイルは [GitHub Releases](https://github.com/Piyoone3939/rungkit/releases) からも取得できます。
 
 ## AIから使う（MCP）
 
@@ -134,6 +134,7 @@ go run ./cmd/rungkit check conveyor.xml          # .xml はそのまま開ける
 
 - 書き出したXMLは公式スキーマ（tc6_xml_v201.xsd）で有効で、Beremiz でそのままビルドできます（[確認の手順と結果](eval/interop/README.md)）。既定のタスク（10ms）も書き出します
 - Beremiz ではタイマー・カウンタの呼び出しがコイルの後に回るため、タイマーを読むラングは三菱より1スキャン遅れます。ラング順どおりの動きが必要なら ST 出力を使ってください
+- OpenPLC Editor v4: 読み込み処理のソースを rungkit の書き出しと突き合わせました（実行はまだ）。ラング・接点・コイル・タイマー・命令は形が合います。比較のあるラングは、OpenPLC の配置の警告付きで取り込まれる見込みです（[詳しく](eval/interop/README.md#openplc-editor-v4-source-review--openplc-editor-v4ソースを読んで確認)）
 - 対応する要素: 接点（a/b/立上り/立下り）、コイル（SET/RST/パルス）、TON/TOF/TP/CTU、比較（EQ/NE/LT/LE/GT/GE）、MOVE/ADD/SUB/MUL/DIV、パルス命令（R_TRIG 経由）、ラングのコメント
 - 読み込みでは配線のグラフを直列・並列の木に戻します。コイルの直列つなぎや、配線のOR（1つの入力に複数の線）も読めます。直列・並列で表せない回路（ブリッジ回路）は `E_NON_SERIES_PARALLEL` で断ります
 - PLCopen はIECの形式なので、三菱プロファイルは `K10` → `10`、`H1F` → `16#1F`、タイマー `K50` → `T#5000ms` のように書き出し、プロファイル名を `addData` に残して、読み込むときに三菱の書き方へ戻します
@@ -167,6 +168,7 @@ test "ワークが来たら5秒後に1つ数える" {
 | `expect OP 値` | 今の値を確かめる |
 | `wait OP 値 within 6s` | 値になるまで動かす。時間内にならなければ失敗 |
 | `watch OP...` | スキャンごとの記録に入れる |
+| `// ...` か `# ...` | コメント |
 
 `T0.ET`（タイマーの経過時間）と `C0.CV`（カウンタの現在値）も読めます。テストは1件ごとに初期状態から始まります。
 

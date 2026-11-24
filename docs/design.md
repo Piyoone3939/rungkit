@@ -120,7 +120,7 @@ cmd/rungkit (組み立て)
 - `render` はラングの木から格子の配置を計算し（直列は右へ、並列は下へ、出力は右の母線に寄せる）、同じ配置を文字（`ascii`）と SVG（`svg`）で描く。SVG の要素には `data-elem`（要素ID）と、デバイスコメント入りの `<title>` を付ける。色は `currentColor` なので、ページのライト・ダークに従う
 - ブラウザ版は Go を WebAssembly にしたもの（`cmd/rungkit-web`）。ファイルシステムがないので `filestore.Memory` を使い、ワークスペースはそのまま使う。`internal/presentation/web` が JavaScript から呼べる関数（update・export・format・runScenario など、JSON を返す）を用意し、画面（`web/`）はそれを呼ぶだけ
 - 入力は端末の localStorage に保存するだけで、どこにも送らない。図の要素をクリックすると、`.ldt` のその要素の行に移動する
-- 今の版はテキストを書いて図を見る形。図の上で直接編集するのは次の段階
+- 図の上でも編集できる。要素かラングをクリックして選び、ボタン（前に条件・後に条件・並列に追加・置き換え・デバイス変更・削除・ラング追加・ラング削除）で操作する。中身は MCP と同じ編集コマンド（`rungkit.edit`）で、結果はテキストに書き戻す。テキストが唯一の元データなので、図の編集で `//` のコメントは消える（初回に確認を出す）。元に戻すはページ側でテキストの履歴を持つ
 
 ## 次にやること
 
@@ -128,6 +128,6 @@ cmd/rungkit (組み立て)
 
 1. `-to gxw3` の CSV を GX Works3 で実際に取り込んで確かめる（手順: [verify-melsec.md](verify-melsec.md)）
 2. GitHub Pages でのブラウザ版の公開（リポジトリの公開後）
-3. ブラウザ版で、図の上から直接編集する（今はテキストを書くと図が更新される形）
-4. OpenPLC Editor v4 / CODESYS の実物で PLCopen XML を確かめる（Beremiz と matiec は確認済み: [eval/interop](../eval/interop/README.md)）
+3. 図の上の編集を、ボタンと入力欄からドラッグや部品の一覧へ広げる
+4. OpenPLC Editor v4（ソースでは確認済み）と CODESYS の実物で PLCopen XML を確かめる（Beremiz と matiec は確認済み: [eval/interop](../eval/interop/README.md)）
 5. 安全条件の形式検証（ESBMC-PLC などとの連携）

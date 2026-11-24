@@ -151,7 +151,7 @@ func step(words []string) (scenario.Step, error) {
 }
 
 // fields splits a line into words, keeping "quoted strings" whole and
-// dropping // comments.
+// dropping // and # comments.
 func fields(line string) ([]string, error) {
 	var out []string
 	i := 0
@@ -161,6 +161,10 @@ func fields(line string) ([]string, error) {
 		case c == ' ' || c == '\t' || c == '\r':
 			i++
 		case c == '/' && i+1 < len(line) && line[i+1] == '/':
+			return out, nil
+		case c == '#':
+			// "#" starting a word is a comment too (agents often write it);
+			// inside a word it belongs to a value such as 16#1F or T#5s.
 			return out, nil
 		case c == '"':
 			j := i + 1

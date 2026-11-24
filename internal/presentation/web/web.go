@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"syscall/js"
 
+	"github.com/Piyoone3939/rungkit/internal/application/editing"
 	"github.com/Piyoone3939/rungkit/internal/application/workspace"
 	"github.com/Piyoone3939/rungkit/internal/domain/i18n"
 )
@@ -101,6 +102,24 @@ func Serve(ws *workspace.Workspace, buf Buffer, version string) {
 		// export(format): the program in another format.
 		"export": js.FuncOf(func(_ js.Value, args []js.Value) any {
 			out, err := ws.Export(args[0].String())
+			if err != nil {
+				return toJSON(map[string]any{"ok": false, "error": err.Error()})
+			}
+			return toJSON(map[string]any{"ok": true, "text": out})
+		}),
+
+		// edit(opsJSON): apply edit commands (the same list edit_program
+		// takes over MCP) to the loaded program and return the new text.
+		// The page puts the text back in the editor, which reloads it.
+		"edit": js.FuncOf(func(_ js.Value, args []js.Value) any {
+			var ops []editing.Op
+			if err := json.Unmarshal([]byte(args[0].String()), &ops); err != nil {
+				return toJSON(map[string]any{"ok": false, "error": err.Error()})
+			}
+			if _, err := ws.Edit(ops); err != nil {
+				return toJSON(map[string]any{"ok": false, "error": err.Error()})
+			}
+			out, err := ws.Text(false)
 			if err != nil {
 				return toJSON(map[string]any{"ok": false, "error": err.Error()})
 			}

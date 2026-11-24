@@ -22,7 +22,6 @@ archives:
       - README.md
       - README.ja.md
       - examples/*
-      - examples/**/*
 
 checksum:
   name_template: checksums.txt

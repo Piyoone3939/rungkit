@@ -120,3 +120,10 @@ textarea {
   .scenario-body { grid-template-columns: 1fr; }
   .scenario-body textarea { border-right: 0; border-bottom: 1px solid var(--line); }
 }
+
+/* editing on the diagram */
+.edit-bar { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; padding: 6px 8px; border-bottom: 1px solid var(--line); }
+.edit-bar button { font-size: 12px; padding: 2px 8px; }
+.edit-bar button:disabled { opacity: 0.4; cursor: default; }
+.edit-bar .sel { color: var(--muted); font-size: 12px; margin-left: auto; font-family: var(--mono); }
+#svg g.rung.selected > text.rung-title { fill: var(--accent); font-weight: bold; }

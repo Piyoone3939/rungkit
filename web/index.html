@@ -34,7 +34,19 @@
     <ul id="diags" class="diags" aria-live="polite"></ul>
   </section>
   <section class="pane drawing">
-    <div class="pane-head"><span data-i18n="ladder">ラダー図</span><span class="hint" data-i18n="clickHint">要素をクリックすると、その行に移動します</span></div>
+    <div class="pane-head"><span data-i18n="ladder">ラダー図</span><span class="hint" data-i18n="clickHint">要素をクリックして選び、下のボタンで編集します</span></div>
+    <div class="edit-bar" role="toolbar" aria-label="edit">
+      <button data-act="addRung" data-i18n="addRung">ラング追加</button>
+      <button data-act="before" data-need="elem" data-i18n="before">前に条件</button>
+      <button data-act="after" data-need="elem" data-i18n="after">後に条件</button>
+      <button data-act="parallel" data-need="elem" data-i18n="parallel">並列に追加</button>
+      <button data-act="replace" data-need="elem" data-i18n="replace">置き換え</button>
+      <button data-act="operand" data-need="elem" data-i18n="operand">デバイス変更</button>
+      <button data-act="delete" data-need="elem" data-i18n="delete">削除</button>
+      <button data-act="deleteRung" data-need="rung" data-i18n="deleteRung">ラング削除</button>
+      <button data-act="undo" id="undo" data-i18n="undo">元に戻す</button>
+      <span id="sel" class="sel"></span>
+    </div>
     <div id="svg" class="svg"></div>
   </section>
   <section class="pane scenario">
