@@ -4,6 +4,13 @@
 
 Formats (`.ldt`, JSON, `.ldtest`, MCP tools) may change while the version is 0.x; changes are listed here. See [docs/decisions.en.md](docs/decisions.en.md).
 
+## 0.2.0 (2026-11-24)
+
+- Browser version redesigned: dark engineering-tool look with a light theme, ribbon toolbar, floating panels, status bar
+- Parts palette: drag contacts, coils, timers, counters and comparisons onto the diagram (before, after, parallel or replace by drop position), or click to add next to the selection
+- In-page input dialog and notices instead of browser prompts; Delete and Esc on the diagram
+- Releases include MCP Bundles (`rungkit-mcp-<os>-<arch>.mcpb`) and `server.json` for the MCP Registry (`scripts/mcpb.sh`); publishing is a manual workflow
+
 ## 0.1.0 (2026-11-24)
 
 - Ladder text format (`.ldt`), JSON, checks with diagnostic codes
@@ -37,6 +44,13 @@ Formats (`.ldt`, JSON, `.ldtest`, MCP tools) may change while the version is 0.x
 ## 日本語
 
 0.x の間は形式（`.ldt`・JSON・`.ldtest`・MCPツール）を変えることがあり、変えたらここに書きます。[docs/decisions.md](docs/decisions.md) を参照してください。
+
+### 0.2.0（2026-11-24）
+
+- ブラウザ版のデザインを刷新: エンジニアリングツール風の暗い画面（明るいテーマも）、リボン型のツールバー、浮いたパネル、ステータスバー
+- 部品パレット: 接点・コイル・タイマー・カウンタ・比較を図へドラッグして置く（置いた位置で前・後・並列・置き換え）。クリックで選択中の要素の隣に置く
+- ブラウザ標準の入力欄の代わりにページ内のダイアログと通知。図の上で Delete と Esc
+- リリースに MCP バンドル（`rungkit-mcp-<os>-<arch>.mcpb`）と MCP レジストリ用の `server.json` を添付（`scripts/mcpb.sh`）。レジストリへの登録は手動のワークフロー
 
 ### 0.1.0（2026-11-24）
 

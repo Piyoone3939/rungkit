@@ -1,0 +1,32 @@
+name: mcp-registry
+
+# Publishes a release's server.json to the official MCP Registry
+# (registry.modelcontextprotocol.io). Run it by hand from the Actions tab after
+# a release; the release workflow attaches server.json and the .mcpb bundles.
+# The io.github.Piyoone3939/* namespace is proven with GitHub OIDC.
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "release tag, e.g. v0.2.0"
+        required: true
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Get server.json from the release
+        run: gh release download "${{ inputs.tag }}" --repo "$GITHUB_REPOSITORY" --pattern server.json
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Install mcp-publisher
+        run: |
+          curl -fsSL "https://github.com/modelcontextprotocol/registry/releases/latest/download/mcp-publisher_linux_amd64.tar.gz" | tar xz mcp-publisher
+      - name: Publish
+        run: |
+          ./mcp-publisher login github-oidc
+          ./mcp-publisher publish

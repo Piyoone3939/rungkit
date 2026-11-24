@@ -1,59 +1,153 @@
 <!doctype html>
-<html lang="ja">
+<html lang="ja" data-theme="dark">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>rungkit</title>
+<meta name="description" content="Write PLC ladder as text, see the diagram, edit it and run scenarios, all in the browser.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23161a21'/%3E%3Cpath d='M8 6v20M24 6v20M8 12h16M8 20h16' stroke='%233ddc97' stroke-width='3' stroke-linecap='round'/%3E%3C/svg%3E">
+<script>
+  // Apply the saved theme before the page paints.
+  try { const t = localStorage.getItem("rungkit.theme"); if (t) document.documentElement.dataset.theme = t; } catch { /* private mode */ }
+</script>
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
-<header class="bar">
-  <div class="brand"><strong>rungkit</strong> <span data-i18n="tagline">ラダーをテキストで書き、その場で図と動作を確かめる</span></div>
-  <div class="tools">
-    <label class="sr" for="example" data-i18n="example">例</label>
-    <select id="example">
-      <option value="" data-i18n="example">例を開く</option>
-      <option value="conveyor" data-i18n="exConveyor">コンベア（三菱）</option>
-      <option value="melsec-semantics" data-i18n="exVerify">三菱の動作確認用</option>
-      <option value="iec" data-i18n="exIec">IEC の例</option>
-    </select>
-    <button id="open" data-i18n="open">開く</button>
-    <input id="file" type="file" accept=".ldt,.json,.xml" hidden>
-    <button id="save" data-i18n="save">.ldt を保存</button>
-    <button id="fmt" data-i18n="format">整形</button>
-    <select id="format" aria-label="export format"></select>
-    <button id="export" data-i18n="export">書き出し</button>
-    <button id="lang" title="日本語 / English">EN</button>
+
+<!-- icons (drawn for rungkit, in the vocabulary of ladder symbols) -->
+<svg class="sprite" aria-hidden="true">
+  <symbol id="i-logo" viewBox="0 0 24 24"><path d="M5 3v18M19 3v18M5 9h14M5 15h14" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></symbol>
+  <symbol id="i-open" viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v1M3 7v10a2 2 0 0 0 2 2h12.5a2 2 0 0 0 1.9-1.4L21.5 12a1 1 0 0 0-1-1.3H8a2 2 0 0 0-1.9 1.4L3.5 18" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></symbol>
+  <symbol id="i-save" viewBox="0 0 24 24"><path d="M5 4h11l3 3v12a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1zM8 4v5h7V4M8 20v-6h8v6" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></symbol>
+  <symbol id="i-format" viewBox="0 0 24 24"><path d="M4 6h16M8 10h12M8 14h12M4 18h16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+  <symbol id="i-rung" viewBox="0 0 24 24"><path d="M4 4v16M20 4v16M4 12h4M16 12h4M9 8v8M15 8v8" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+  <symbol id="i-rung-add" viewBox="0 0 24 24"><path d="M4 3v12M20 3v12M4 9h16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M12 15v6M9 18h6" fill="none" stroke="var(--accent)" stroke-width="2.2" stroke-linecap="round"/></symbol>
+  <symbol id="i-rung-del" viewBox="0 0 24 24"><path d="M4 3v12M20 3v12M4 9h16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M9 18h6" fill="none" stroke="var(--err)" stroke-width="2.2" stroke-linecap="round"/></symbol>
+  <symbol id="i-before" viewBox="0 0 24 24"><path d="M2 14h3M10 14h3M13 10v8M18 10v8M18 14h4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M7.5 4v6M4.5 7h6" fill="none" stroke="var(--accent)" stroke-width="2.2" stroke-linecap="round"/></symbol>
+  <symbol id="i-after" viewBox="0 0 24 24"><path d="M2 14h4M6 10v8M11 10v8M11 14h3M19 14h3" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M16.5 4v6M13.5 7h6" fill="none" stroke="var(--accent)" stroke-width="2.2" stroke-linecap="round"/></symbol>
+  <symbol id="i-parallel" viewBox="0 0 24 24"><path d="M2 7h7M15 7h7M9 4v6M15 4v6M5 7v10h4M15 17h4V7" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M9 14v6M15 14v6" fill="none" stroke="var(--accent)" stroke-width="2.2" stroke-linecap="round"/></symbol>
+  <symbol id="i-replace" viewBox="0 0 24 24"><path d="M4 9a7 7 0 0 1 12.5-3.5L19 8M20 15a7 7 0 0 1-12.5 3.5L5 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M19 3v5h-5M5 21v-5h5" fill="none" stroke="var(--accent)" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-device" viewBox="0 0 24 24"><path d="M3 12l7-7h10v10l-7 7z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><circle cx="15.5" cy="9.5" r="1.6" fill="var(--accent)"/></symbol>
+  <symbol id="i-delete" viewBox="0 0 24 24"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M10 11v6M14 11v6" fill="none" stroke="var(--err)" stroke-width="1.8" stroke-linecap="round"/></symbol>
+  <symbol id="i-undo" viewBox="0 0 24 24"><path d="M9 14L4 9l5-5M4 9h10a6 6 0 0 1 0 12h-3" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-export" viewBox="0 0 24 24"><path d="M12 3v12M7 8l5-5 5 5M5 14v5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-play" viewBox="0 0 24 24"><path d="M7 4.5v15l12-7.5z" fill="currentColor"/></symbol>
+  <symbol id="i-moon" viewBox="0 0 24 24"><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></symbol>
+  <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+  <symbol id="p-no" viewBox="0 0 24 24"><path d="M2 12h6M16 12h6M8 6v12M16 6v12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+  <symbol id="p-nc" viewBox="0 0 24 24"><path d="M2 12h6M16 12h6M8 6v12M16 6v12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M6.5 18L17.5 6" stroke="var(--accent)" stroke-width="2" stroke-linecap="round"/></symbol>
+  <symbol id="p-rise" viewBox="0 0 24 24"><path d="M2 12h6M16 12h6M8 6v12M16 6v12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M12 16V8M9.5 10.5L12 8l2.5 2.5" fill="none" stroke="var(--accent)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="p-fall" viewBox="0 0 24 24"><path d="M2 12h6M16 12h6M8 6v12M16 6v12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M12 8v8M9.5 13.5L12 16l2.5-2.5" fill="none" stroke="var(--accent)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="p-coil" viewBox="0 0 24 24"><path d="M2 12h4M18 12h4M9 6a8 8 0 0 0 0 12M15 6a8 8 0 0 1 0 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+  <symbol id="p-set" viewBox="0 0 24 24"><path d="M2 12h4M18 12h4M9 6a8 8 0 0 0 0 12M15 6a8 8 0 0 1 0 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><text x="12" y="15.5" text-anchor="middle" font-size="9" font-weight="700" fill="var(--accent)" font-family="sans-serif">S</text></symbol>
+  <symbol id="p-rst" viewBox="0 0 24 24"><path d="M2 12h4M18 12h4M9 6a8 8 0 0 0 0 12M15 6a8 8 0 0 1 0 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><text x="12" y="15.5" text-anchor="middle" font-size="9" font-weight="700" fill="var(--err)" font-family="sans-serif">R</text></symbol>
+  <symbol id="p-timer" viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="14" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.9"/><path d="M12 8.5V12l2.5 1.8" fill="none" stroke="var(--accent)" stroke-width="1.8" stroke-linecap="round"/></symbol>
+  <symbol id="p-counter" viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="14" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.9"/><text x="12" y="15" text-anchor="middle" font-size="7.5" font-weight="700" fill="var(--accent)" font-family="monospace">123</text></symbol>
+  <symbol id="p-cmp" viewBox="0 0 24 24"><path d="M2 12h3M19 12h3M5 6h14v12H5z" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"/><path d="M9 9.5l6 2.5-6 2.5" fill="none" stroke="var(--accent)" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-github" viewBox="0 0 24 24"><path d="M12 2a10 10 0 0 0-3.2 19.5c.5.1.7-.2.7-.5v-1.8c-2.8.6-3.4-1.3-3.4-1.3-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.5 2.4 1.1 3 .8.1-.6.3-1.1.6-1.3-2.2-.3-4.6-1.1-4.6-5a3.9 3.9 0 0 1 1-2.7 3.6 3.6 0 0 1 .1-2.7s.8-.3 2.8 1a9.6 9.6 0 0 1 5 0c1.9-1.3 2.8-1 2.8-1 .5 1.4.2 2.4.1 2.7a3.9 3.9 0 0 1 1 2.7c0 3.9-2.4 4.7-4.6 5 .4.3.7.9.7 1.9V21c0 .3.2.6.7.5A10 10 0 0 0 12 2z" fill="currentColor"/></symbol>
+</svg>
+
+<header class="titlebar">
+  <div class="brand">
+    <svg class="logo"><use href="#i-logo"/></svg>
+    <strong>rungkit</strong>
+    <span class="doc"><span id="docname">program.ldt</span></span>
+  </div>
+  <span class="tagline" data-i18n="tagline">ラダーをテキストで書き、その場で図と動作を確かめる</span>
+  <div class="title-actions">
+    <button id="lang" class="ghost" title="日本語 / English">EN</button>
+    <button id="theme" class="ghost icon" aria-label="theme"><svg><use href="#i-sun"/></svg></button>
+    <a class="ghost icon" href="https://github.com/Piyoone3939/rungkit" aria-label="GitHub" title="GitHub"><svg><use href="#i-github"/></svg></a>
   </div>
 </header>
 
-<main>
-  <section class="pane editor">
-    <div class="pane-head"><span data-i18n="program">プログラム（.ldt）</span><span id="status" class="status"></span></div>
+<nav class="ribbon" aria-label="tools">
+  <div class="group">
+    <div class="group-body">
+      <label class="field">
+        <span class="sr" data-i18n="example">例</span>
+        <select id="example">
+          <option value="" data-i18n="example">例を開く</option>
+          <option value="conveyor" data-i18n="exConveyor">コンベア（三菱）</option>
+          <option value="melsec-semantics" data-i18n="exVerify">三菱の動作確認用</option>
+          <option value="iec" data-i18n="exIec">IEC の例</option>
+        </select>
+      </label>
+      <button id="open" class="tool"><svg><use href="#i-open"/></svg><span data-i18n="open">開く</span></button>
+      <input id="file" type="file" accept=".ldt,.json,.xml" hidden>
+      <button id="save" class="tool"><svg><use href="#i-save"/></svg><span data-i18n="save">.ldt を保存</span></button>
+      <button id="fmt" class="tool"><svg><use href="#i-format"/></svg><span data-i18n="format">整形</span></button>
+    </div>
+    <div class="group-name" data-i18n="gFile">ファイル</div>
+  </div>
+
+  <div class="group">
+    <div class="group-body edit-bar" role="toolbar" aria-label="edit">
+      <button class="tool" data-act="addRung"><svg><use href="#i-rung-add"/></svg><span data-i18n="addRung">ラング追加</span></button>
+      <button class="tool" data-act="before" data-need="elem"><svg><use href="#i-before"/></svg><span data-i18n="before">前に条件</span></button>
+      <button class="tool" data-act="after" data-need="elem"><svg><use href="#i-after"/></svg><span data-i18n="after">後に条件</span></button>
+      <button class="tool" data-act="parallel" data-need="elem"><svg><use href="#i-parallel"/></svg><span data-i18n="parallel">並列に追加</span></button>
+      <button class="tool" data-act="replace" data-need="elem"><svg><use href="#i-replace"/></svg><span data-i18n="replace">置き換え</span></button>
+      <button class="tool" data-act="operand" data-need="elem"><svg><use href="#i-device"/></svg><span data-i18n="operand">デバイス変更</span></button>
+      <button class="tool" data-act="delete" data-need="elem"><svg><use href="#i-delete"/></svg><span data-i18n="delete">削除</span></button>
+      <button class="tool" data-act="deleteRung" data-need="rung"><svg><use href="#i-rung-del"/></svg><span data-i18n="deleteRung">ラング削除</span></button>
+      <button class="tool" data-act="undo" id="undo"><svg><use href="#i-undo"/></svg><span data-i18n="undo">元に戻す</span></button>
+    </div>
+    <div class="group-name" data-i18n="gEdit">図で編集</div>
+  </div>
+
+  <div class="group">
+    <div class="group-body">
+      <label class="field">
+        <span class="sr" data-i18n="export">書き出し</span>
+        <select id="format" aria-label="export format"></select>
+      </label>
+      <button id="export" class="tool"><svg><use href="#i-export"/></svg><span data-i18n="export">書き出し</span></button>
+    </div>
+    <div class="group-name" data-i18n="gExport">書き出し</div>
+  </div>
+</nav>
+
+<main class="workspace">
+  <section class="panel editor">
+    <div class="panel-head"><span class="grip"></span><span data-i18n="program">プログラム（.ldt）</span></div>
     <textarea id="src" spellcheck="false" wrap="off" aria-label="program"></textarea>
     <ul id="diags" class="diags" aria-live="polite"></ul>
   </section>
-  <section class="pane drawing">
-    <div class="pane-head"><span data-i18n="ladder">ラダー図</span><span class="hint" data-i18n="clickHint">要素をクリックして選び、下のボタンで編集します</span></div>
-    <div class="edit-bar" role="toolbar" aria-label="edit">
-      <button data-act="addRung" data-i18n="addRung">ラング追加</button>
-      <button data-act="before" data-need="elem" data-i18n="before">前に条件</button>
-      <button data-act="after" data-need="elem" data-i18n="after">後に条件</button>
-      <button data-act="parallel" data-need="elem" data-i18n="parallel">並列に追加</button>
-      <button data-act="replace" data-need="elem" data-i18n="replace">置き換え</button>
-      <button data-act="operand" data-need="elem" data-i18n="operand">デバイス変更</button>
-      <button data-act="delete" data-need="elem" data-i18n="delete">削除</button>
-      <button data-act="deleteRung" data-need="rung" data-i18n="deleteRung">ラング削除</button>
-      <button data-act="undo" id="undo" data-i18n="undo">元に戻す</button>
-      <span id="sel" class="sel"></span>
+
+  <section class="canvas drawing" aria-label="ladder">
+    <div class="canvas-head">
+      <span class="chip"><svg><use href="#i-rung"/></svg><span data-i18n="ladder">ラダー図</span></span>
+      <span class="hint" data-i18n="clickHint">要素をクリックして選び、上のボタンで編集します</span>
+      <span id="sel" class="chip sel"></span>
     </div>
-    <div id="svg" class="svg"></div>
+    <div class="canvas-body">
+      <div class="palette" role="toolbar" aria-label="parts">
+        <div class="palette-title" data-i18n="parts">部品</div>
+        <button class="part" draggable="true" data-part="no" data-i18n-title="pNo"><svg><use href="#p-no"/></svg></button>
+        <button class="part" draggable="true" data-part="nc" data-i18n-title="pNc"><svg><use href="#p-nc"/></svg></button>
+        <button class="part" draggable="true" data-part="rise" data-i18n-title="pRise"><svg><use href="#p-rise"/></svg></button>
+        <button class="part" draggable="true" data-part="fall" data-i18n-title="pFall"><svg><use href="#p-fall"/></svg></button>
+        <button class="part" draggable="true" data-part="cmp" data-i18n-title="pCmp"><svg><use href="#p-cmp"/></svg></button>
+        <span class="palette-sep"></span>
+        <button class="part" draggable="true" data-part="out" data-i18n-title="pOut"><svg><use href="#p-coil"/></svg></button>
+        <button class="part" draggable="true" data-part="set" data-i18n-title="pSet"><svg><use href="#p-set"/></svg></button>
+        <button class="part" draggable="true" data-part="rst" data-i18n-title="pRst"><svg><use href="#p-rst"/></svg></button>
+        <button class="part" draggable="true" data-part="ton" data-i18n-title="pTon"><svg><use href="#p-timer"/></svg></button>
+        <button class="part" draggable="true" data-part="ctu" data-i18n-title="pCtu"><svg><use href="#p-counter"/></svg></button>
+      </div>
+      <div id="svg" class="svg" tabindex="0"></div>
+    </div>
+    <div id="droptip" class="droptip" hidden></div>
   </section>
-  <section class="pane scenario">
-    <div class="pane-head">
+
+  <section class="panel dock scenario">
+    <div class="panel-head">
+      <span class="grip"></span>
       <span data-i18n="scenario">シナリオ（.ldtest）</span>
+      <span id="summary" class="summary"></span>
       <label class="check"><input id="trace" type="checkbox"> <span data-i18n="trace">記録を表示</span></label>
-      <button id="run" class="primary" data-i18n="run">実行</button>
+      <button id="run" class="primary"><svg><use href="#i-play"/></svg><span data-i18n="run">実行</span></button>
     </div>
     <div class="scenario-body">
       <textarea id="scn" spellcheck="false" wrap="off" aria-label="scenario"></textarea>
@@ -62,10 +156,26 @@
   </section>
 </main>
 
-<footer class="foot">
+<div id="toast" class="toast" role="alert" hidden></div>
+
+<dialog id="ask" class="ask">
+  <form method="dialog">
+    <label for="ask-input" id="ask-label"></label>
+    <input id="ask-input" autocomplete="off" spellcheck="false">
+    <p id="ask-hint" class="ask-hint"></p>
+    <div class="ask-actions">
+      <button value="cancel" formnovalidate data-i18n="cancel">やめる</button>
+      <button value="ok" class="primary" data-i18n="ok">OK</button>
+    </div>
+  </form>
+</dialog>
+
+<footer class="statusbar">
+  <span class="dot" id="dot"></span>
+  <span id="status" class="status"></span>
+  <span class="spacer"></span>
   <span data-i18n="foot">ブラウザの中だけで動きます。入力はこの端末に保存されます。</span>
-  <a href="https://github.com/Piyoone3939/rungkit">GitHub</a>
-  <span id="ver"></span>
+  <span id="ver" class="ver"></span>
 </footer>
 
 <script src="wasm_exec.js"></script>

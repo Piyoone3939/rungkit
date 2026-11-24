@@ -25,6 +25,14 @@ jobs:
           args: release --clean
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      # MCP Bundles (.mcpb) and server.json for the MCP Registry, attached to
+      # the release. Publishing to the registry is a separate, manual workflow
+      # (mcp-registry.yml).
+      - run: |
+          sh scripts/mcpb.sh "${GITHUB_REF_NAME#v}" dist dist/mcpb
+          gh release upload "$GITHUB_REF_NAME" dist/mcpb/*.mcpb dist/mcpb/server.json
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       # Publish the browser version too. Pages may only deploy from main, and
       # a workflow_dispatch is the one event GITHUB_TOKEN can start.
       - run: gh workflow run pages.yml --ref main

@@ -122,12 +122,14 @@ The text grammar cannot produce trees that break these rules; trees from JSON ar
 - `render` lays a rung out on a grid from the tree (series to the right, parallel downward, outputs pushed to the right rail) and draws the same layout as text (`ascii`) and SVG (`svg`). SVG elements carry `data-elem` (the element ID) and a `<title>` with the device comment; colors use `currentColor`, so drawings follow the page theme
 - The browser version is Go compiled to WebAssembly (`cmd/rungkit-web`). With no file system it uses `filestore.Memory` and the unchanged workspace. `internal/presentation/web` exposes functions to JavaScript (update, export, format, runScenario, … returning JSON); the page (`web/`) only calls them
 - Input is kept in the browser's localStorage and sent nowhere. Clicking an element in the drawing jumps to its line in the `.ldt`
+- The page looks like an engineering tool (dark background, floating panels on a dotted work surface, a ribbon grouped by task, a status bar), with a light theme as an option. Colors are variables in `web/style.css`; the accent is the green of an energized rung
+- Parts from the palette (NO/NC contact, rising/falling edge, comparison, OUT, SET, RST, timer, counter) can be dragged onto an element: where they land decides before, after, parallel (lower part) or replace (middle); elsewhere they make a new rung. Clicking a part puts it after the selected element (in parallel for outputs)
 - The drawing can be edited too: click an element or a rung to select it, then use the buttons (condition before/after, add in parallel, replace, change device, delete, add/delete rung). They run the same edit commands as MCP (`rungkit.edit`) and write the result back to the text. The text stays the single source, so editing on the drawing drops `//` comments (the page asks first). Undo keeps a history of the text in the page
 
 ## Next
 
 1. Import the `-to gxw3` CSV into GX Works3 itself ([how to check](verify-melsec.en.md))
 2. Publish the browser version on GitHub Pages (once the repository is public)
-3. Grow editing on the drawing from buttons and prompts to dragging and a parts palette
+3. Grow editing on the drawing further (moving elements by dragging, multiple selection, copy)
 4. Check PLCopen XML in OpenPLC Editor v4 itself (its importer was reviewed) and CODESYS (Beremiz and matiec are done: [eval/interop](../eval/interop/README.md))
 5. Formal verification of safety properties (ESBMC-PLC and others)

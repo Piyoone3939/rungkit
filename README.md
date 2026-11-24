@@ -7,11 +7,11 @@ rungkit keeps a ladder diagram as a series-parallel tree, lets an AI agent edit 
 
 > Status: prototype (0.x). Editing commands, simulator, MCP server, PLCopen XML and a browser version are in place.
 
-![rungkit in the browser: ladder text on the left, the diagram with edit buttons on the right, scenario results below](docs/images/web.jpg)
+![rungkit in the browser: ribbon of edit tools on top, ladder text on the left, the diagram with a parts palette on the right, scenario results below](docs/images/web.jpg)
 
 ## Try it in the browser
 
-The browser version runs entirely in the page (Go compiled to WebAssembly): write `.ldt` on the left and see the ladder diagram and diagnostics as you type, click an element to jump to its line or edit it on the diagram (add conditions before or after, in parallel, replace, delete, add rungs), run `.ldtest` scenarios with a trace, and export to every format. Nothing is sent anywhere; your input stays in the browser.
+The browser version runs entirely in the page (Go compiled to WebAssembly): write `.ldt` on the left and see the ladder diagram and diagnostics as you type, click an element to jump to its line or edit it on the diagram (drag contacts, coils, timers and counters from the parts palette onto it, or use the ribbon buttons; Delete and Esc work too), run `.ldtest` scenarios with a trace, and export to every format. Dark and light themes. Nothing is sent anywhere; your input stays in the browser.
 
 Open it at **https://piyoone3939.github.io/rungkit/** (updated with each release by [.github/workflows/pages.yml](.github/workflows/pages.yml)), or build it yourself:
 

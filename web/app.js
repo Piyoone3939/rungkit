@@ -13,7 +13,15 @@ const T = {
     tagline: "ラダーをテキストで書き、その場で図と動作を確かめる",
     example: "例を開く", exConveyor: "コンベア（三菱）", exVerify: "三菱の動作確認用", exIec: "IEC の例",
     open: "開く", save: ".ldt を保存", format: "整形", export: "書き出し",
-    program: "プログラム（.ldt）", ladder: "ラダー図", clickHint: "要素をクリックして選び、下のボタンで編集します",
+    program: "プログラム（.ldt）", ladder: "ラダー図", clickHint: "要素をクリックして選び、上のボタンで編集します（Delete で削除、Esc で選択解除）",
+    parts: "部品", cancel: "やめる", ok: "OK",
+    pNo: "a接点（ドラッグして図に置く）", pNc: "b接点", pRise: "立上り", pFall: "立下り", pCmp: "比較",
+    pOut: "コイル OUT", pSet: "SET", pRst: "RST", pTon: "タイマー", pCtu: "カウンタ",
+    askDevice: "デバイス", askCompare: "比較の式", askTimer: "タイマーとその設定値", askCounter: "カウンタとその設定値",
+    hintDevice: "例: X0、M10、Y1", hintCompare: "例: D0 >= K100（= <> < <= > >=）", hintTimer: "例: T0, K50（三菱は100ms単位で K50 = 5秒）", hintCounter: "例: C0, K10",
+    askNewRung: "新しいラング", hintRung: "条件 -> 出力 の形。例: X0 & !X1 -> OUT(Y0)",
+    dropBefore: "前に入れる", dropAfter: "後に入れる", dropParallel: "並列に足す", dropReplace: "置き換える", dropRung: "新しいラングにする",
+    gFile: "ファイル", gEdit: "図で編集", gExport: "書き出し", themeDark: "暗いテーマにする", themeLight: "明るいテーマにする",
     addRung: "ラング追加", before: "前に条件", after: "後に条件", parallel: "並列に追加", replace: "置き換え",
     operand: "デバイス変更", delete: "削除", deleteRung: "ラング削除", undo: "元に戻す",
     selected: (r, e) => e ? `選択中: ${r} / ${e}` : `選択中: ${r}`,
@@ -31,7 +39,15 @@ const T = {
     tagline: "Write ladder as text; see the diagram and the behavior as you type",
     example: "Open an example", exConveyor: "Conveyor (MELSEC)", exVerify: "MELSEC behavior check", exIec: "IEC example",
     open: "Open", save: "Save .ldt", format: "Format", export: "Export",
-    program: "Program (.ldt)", ladder: "Ladder", clickHint: "Click an element to select it, then edit with the buttons",
+    program: "Program (.ldt)", ladder: "Ladder", clickHint: "Click an element to select it, then edit with the buttons above (Delete removes, Esc deselects)",
+    parts: "Parts", cancel: "Cancel", ok: "OK",
+    pNo: "NO contact (drag onto the diagram)", pNc: "NC contact", pRise: "Rising edge", pFall: "Falling edge", pCmp: "Comparison",
+    pOut: "Coil OUT", pSet: "SET", pRst: "RST", pTon: "Timer", pCtu: "Counter",
+    askDevice: "Device", askCompare: "Comparison", askTimer: "Timer and preset", askCounter: "Counter and preset",
+    hintDevice: "e.g. X0, M10, Y1", hintCompare: "e.g. D0 >= K100 (= <> < <= > >=)", hintTimer: "e.g. T0, K50 (MELSEC counts 100 ms, so K50 = 5 s)", hintCounter: "e.g. C0, K10",
+    askNewRung: "New rung", hintRung: "condition -> output, e.g. X0 & !X1 -> OUT(Y0)",
+    dropBefore: "Insert before", dropAfter: "Insert after", dropParallel: "Add in parallel", dropReplace: "Replace", dropRung: "Make a new rung",
+    gFile: "File", gEdit: "Edit on diagram", gExport: "Export", themeDark: "Switch to dark theme", themeLight: "Switch to light theme",
     addRung: "Add rung", before: "Condition before", after: "Condition after", parallel: "Add in parallel", replace: "Replace",
     operand: "Change device", delete: "Delete", deleteRung: "Delete rung", undo: "Undo",
     selected: (r, e) => e ? `Selected: ${r} / ${e}` : `Selected: ${r}`,
@@ -52,7 +68,9 @@ const t = (k, ...a) => { const v = T[lang][k]; return typeof v === "function" ? 
 function applyLanguage() {
   document.documentElement.lang = lang;
   document.querySelectorAll("[data-i18n]").forEach((el) => { el.textContent = t(el.dataset.i18n); });
+  document.querySelectorAll("[data-i18n-title]").forEach((el) => { el.title = t(el.dataset.i18nTitle); el.setAttribute("aria-label", el.title); });
   $("lang").textContent = lang === "ja" ? "EN" : "日本語";
+  applyTheme();
   if (window.rungkit) { rungkit.setLanguage(lang); refresh(); }
 }
 
@@ -61,6 +79,31 @@ const EXAMPLES = {
   "melsec-semantics": ["examples/melsec-semantics.ldt", "examples/melsec-semantics.ldtest"],
   iec: ["examples/iec.ldt", "examples/iec.ldtest"],
 };
+
+// ---- notices ----
+
+let toastTimer = 0;
+function toast(msg) {
+  const el = $("toast");
+  el.textContent = msg;
+  el.hidden = false;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { el.hidden = true; }, 7000);
+}
+
+// ---- theme ----
+
+function applyTheme() {
+  const dark = document.documentElement.dataset.theme !== "light";
+  $("theme").querySelector("use").setAttribute("href", dark ? "#i-sun" : "#i-moon");
+  $("theme").title = t(dark ? "themeLight" : "themeDark");
+}
+function toggleTheme() {
+  const next = document.documentElement.dataset.theme === "light" ? "dark" : "light";
+  document.documentElement.dataset.theme = next;
+  store.set("theme", next);
+  applyTheme();
+}
 
 // ---- editor helpers ----
 
@@ -100,9 +143,11 @@ function refresh() {
   store.set("src", src);
   const r = JSON.parse(rungkit.update(fileName, src));
   const status = $("status"), list = $("diags"), svg = $("svg");
+  $("docname").textContent = fileName;
   list.replaceChildren();
   if (!r.ok) {
     status.textContent = r.error; status.classList.add("bad");
+    $("dot").className = "dot bad";
     svg.innerHTML = `<div class="placeholder">${t("noDrawing")}</div>`;
     const li = document.createElement("li");
     li.className = "error";
@@ -117,6 +162,7 @@ function refresh() {
   const errs = r.diagnostics.filter((d) => d.severity === "error").length;
   status.textContent = `${r.profile} · ${t("rungs", r.rungs)} · ${t("errors", errs, r.diagnostics.length - errs)}`;
   status.classList.toggle("bad", errs > 0);
+  $("dot").className = "dot " + (errs > 0 ? "bad" : "ok");
   for (const d of r.diagnostics) {
     const li = document.createElement("li");
     li.className = d.severity;
@@ -156,31 +202,47 @@ function applyEdit(ops) {
   const before = $("src").value;
   if (/\/\//.test(before) && !editHistory.length && !confirm(t("dropComments"))) return;
   const r = JSON.parse(rungkit.edit(JSON.stringify(ops)));
-  if (!r.ok) { alert(t("editFailed") + r.error); refresh(); return; }
+  if (!r.ok) { toast(t("editFailed") + r.error); refresh(); return; }
   editHistory.push(before);
   $("src").value = r.text;
   refresh();
   select("", "");
 }
 
-function editAction(act) {
-  const ask = (k) => { const v = prompt(t(k)); return v && v.trim() ? v.trim() : null; };
+// askText shows the input dialog and resolves to the trimmed text, or null.
+function askText(labelKey, initial = "", hintKey = "") {
+  const dlg = $("ask"), input = $("ask-input");
+  $("ask-label").textContent = t(labelKey);
+  $("ask-hint").textContent = hintKey ? t(hintKey) : "";
+  input.value = initial;
+  return new Promise((done) => {
+    dlg.onclose = () => {
+      const v = dlg.returnValue === "ok" ? input.value.trim() : "";
+      done(v || null);
+    };
+    dlg.returnValue = "";
+    dlg.showModal();
+    input.select();
+  });
+}
+
+async function editAction(act) {
   let text;
   switch (act) {
     case "addRung":
-      if ((text = ask("askRung"))) applyEdit([{ op: "add_rung", text, after: sel.rung }]);
+      if ((text = await askText("askRung", "", "hintRung"))) applyEdit([{ op: "add_rung", text, after: sel.rung }]);
       break;
     case "before": case "after":
-      if ((text = ask("askCond"))) applyEdit([{ op: "insert_series", target: sel.elem, position: act, text }]);
+      if ((text = await askText("askCond", "", "hintDevice"))) applyEdit([{ op: "insert_series", target: sel.elem, position: act, text }]);
       break;
     case "parallel":
-      if ((text = ask("askParallel"))) applyEdit([{ op: "insert_parallel", target: sel.elem, text }]);
+      if ((text = await askText("askParallel"))) applyEdit([{ op: "insert_parallel", target: sel.elem, text }]);
       break;
     case "replace":
-      if ((text = ask("askReplace"))) applyEdit([{ op: "replace_element", target: sel.elem, text }]);
+      if ((text = await askText("askReplace"))) applyEdit([{ op: "replace_element", target: sel.elem, text }]);
       break;
     case "operand":
-      if ((text = ask("askOperand"))) applyEdit([{ op: "set_operand", target: sel.elem, operand: text }]);
+      if ((text = await askText("askOperand", "", "hintDevice"))) applyEdit([{ op: "set_operand", target: sel.elem, operand: text }]);
       break;
     case "delete":
       applyEdit([{ op: "delete_element", target: sel.elem }]);
@@ -194,6 +256,109 @@ function editAction(act) {
   }
 }
 
+// ---- parts palette ----
+
+// Each part asks for what it needs and turns it into ladder text.
+const PARTS = {
+  no:   { out: false, ask: "askDevice",  hint: "hintDevice",  def: "X0",         text: (v) => v },
+  nc:   { out: false, ask: "askDevice",  hint: "hintDevice",  def: "X1",         text: (v) => "!" + v },
+  rise: { out: false, ask: "askDevice",  hint: "hintDevice",  def: "X0",         text: (v) => `rise(${v})` },
+  fall: { out: false, ask: "askDevice",  hint: "hintDevice",  def: "X0",         text: (v) => `fall(${v})` },
+  cmp:  { out: false, ask: "askCompare", hint: "hintCompare", def: "D0 >= K10",  text: (v) => `[${v}]` },
+  out:  { out: true,  ask: "askDevice",  hint: "hintDevice",  def: "Y0",         text: (v) => `OUT(${v})` },
+  set:  { out: true,  ask: "askDevice",  hint: "hintDevice",  def: "M0",         text: (v) => `SET(${v})` },
+  rst:  { out: true,  ask: "askDevice",  hint: "hintDevice",  def: "M0",         text: (v) => `RST(${v})` },
+  ton:  { out: true,  ask: "askTimer",   hint: "hintTimer",   def: "T0, K50",    text: (v) => `TON(${v})` },
+  ctu:  { out: true,  ask: "askCounter", hint: "hintCounter", def: "C0, K10",    text: (v) => `CTU(${v})` },
+};
+
+// zoneOf says where a drop on element g at (x, y) goes: before, after,
+// parallel (lower part) or replace (middle).
+function zoneOf(g, x, y) {
+  const r = g.querySelector("rect.hit").getBoundingClientRect();
+  const fx = (x - r.left) / r.width, fy = (y - r.top) / r.height;
+  if (fy > 0.72) return "parallel";
+  if (fx < 0.3) return "before";
+  if (fx > 0.7) return "after";
+  return "replace";
+}
+
+async function placePart(key, target) {
+  const part = PARTS[key];
+  if (!part) return;
+  const v = await askText(part.ask, part.def, part.hint);
+  if (!v) return;
+  const text = part.text(v);
+  if (target.zone === "rung") {
+    const rung = part.out ? `X0 -> ${text}` : `${text} -> OUT(Y0)`;
+    const full = await askText("askNewRung", rung, "hintRung");
+    if (full) applyEdit([{ op: "add_rung", text: full, after: target.rung || "" }]);
+    return;
+  }
+  const op = {
+    before: { op: "insert_series", target: target.elem, position: "before", text },
+    after: { op: "insert_series", target: target.elem, position: "after", text },
+    parallel: { op: "insert_parallel", target: target.elem, text },
+    replace: { op: "replace_element", target: target.elem, text },
+  }[target.zone];
+  applyEdit([op]);
+}
+
+function wireParts() {
+  const svg = $("svg"), tip = $("droptip"), canvas = svg.closest(".canvas");
+  let dragged = "", over = null;
+  const clear = () => {
+    document.querySelectorAll("#svg .drop").forEach((x) => x.classList.remove("drop"));
+    tip.hidden = true; over = null;
+  };
+  document.querySelectorAll(".part").forEach((b) => {
+    b.addEventListener("dragstart", (e) => {
+      dragged = b.dataset.part;
+      e.dataTransfer.setData("text/plain", dragged);
+      e.dataTransfer.effectAllowed = "copy";
+      document.body.classList.add("dragging");
+    });
+    b.addEventListener("dragend", () => { dragged = ""; clear(); document.body.classList.remove("dragging"); });
+    // A click places the part next to the selection: after a condition,
+    // in parallel with an output, or as a new rung when nothing is selected.
+    b.addEventListener("click", () => {
+      const key = b.dataset.part;
+      if (!sel.elem) { placePart(key, { zone: "rung", rung: sel.rung }); return; }
+      placePart(key, { zone: PARTS[key].out ? "parallel" : "after", elem: sel.elem });
+    });
+  });
+  svg.addEventListener("dragover", (e) => {
+    if (!dragged) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "copy";
+    const g = e.target.closest("g.elem");
+    const rung = e.target.closest("g.rung");
+    document.querySelectorAll("#svg .drop").forEach((x) => x.classList.remove("drop"));
+    if (g) {
+      over = { zone: zoneOf(g, e.clientX, e.clientY), elem: g.dataset.elem };
+      g.classList.add("drop");
+    } else {
+      over = { zone: "rung", rung: rung ? rung.dataset.rung : "" };
+      if (rung) rung.classList.add("drop");
+    }
+    const key = { before: "dropBefore", after: "dropAfter", parallel: "dropParallel", replace: "dropReplace", rung: "dropRung" }[over.zone];
+    const c = canvas.getBoundingClientRect();
+    tip.textContent = t(key);
+    tip.style.left = `${e.clientX - c.left + 14}px`;
+    tip.style.top = `${e.clientY - c.top + 14}px`;
+    tip.hidden = false;
+  });
+  svg.addEventListener("dragleave", (e) => { if (!svg.contains(e.relatedTarget)) clear(); });
+  svg.addEventListener("drop", (e) => {
+    e.preventDefault();
+    const key = dragged || e.dataTransfer.getData("text/plain");
+    const target = over;
+    clear();
+    document.body.classList.remove("dragging");
+    if (key && target) placePart(key, target);
+  });
+}
+
 // ---- scenarios ----
 
 function runScenario() {
@@ -201,6 +366,7 @@ function runScenario() {
   const r = JSON.parse(rungkit.runScenario($("scn").value, $("trace").checked));
   const box = $("results");
   box.replaceChildren();
+  $("summary").replaceChildren();
   if (!r.ok) {
     const p = document.createElement("p"); p.className = "error"; p.textContent = r.error;
     if (r.line) { p.style.cursor = "pointer"; p.onclick = () => jumpTo($("scn"), r.line, 1); }
@@ -211,6 +377,10 @@ function runScenario() {
   const sum = document.createElement("div"); sum.className = "sum";
   sum.textContent = t("passed", passed, r.results.length);
   box.append(sum);
+  const pill = document.createElement("span");
+  pill.className = "pill " + (passed === r.results.length ? "ok" : "ng");
+  pill.textContent = `${passed}/${r.results.length} PASS`;
+  $("summary").append(pill);
   for (const x of r.results) {
     const div = document.createElement("div");
     div.className = "test " + (x.pass ? "pass" : "fail");
@@ -291,12 +461,18 @@ function wire() {
   $("export").onclick = () => {
     const fmt = $("format").value;
     const r = JSON.parse(rungkit.export(fmt));
-    if (!r.ok) { alert(t("exportFailed") + r.error); return; }
+    if (!r.ok) { toast(t("exportFailed") + r.error); return; }
     const base = fileName.replace(/\.[^.]+$/, "");
     const name = `${base}.${fmt === "ascii" ? "ascii." : ""}${exts[fmt] || "txt"}`;
     if (fmt === "gxw3") { download(name, utf16le(r.text), "text/csv"); return; } // GX Works3 reads UTF-16
     download(name, r.text, fmt === "svg" ? "image/svg+xml" : undefined);
   };
+  $("theme").onclick = toggleTheme;
+  wireParts();
+  $("svg").addEventListener("keydown", (e) => {
+    if ((e.key === "Delete" || e.key === "Backspace") && sel.elem) { e.preventDefault(); editAction("delete"); }
+    else if (e.key === "Escape") select("", "");
+  });
   $("lang").onclick = () => { lang = lang === "ja" ? "en" : "ja"; store.set("lang", lang); applyLanguage(); };
   $("svg").addEventListener("click", (e) => {
     const g = e.target.closest("g.elem");
@@ -305,6 +481,7 @@ function wire() {
     select(rung, g.dataset.elem);
     const p = positions[g.dataset.elem];
     if (p) jumpTo($("src"), p[0], p[1]);
+    $("svg").focus({ preventScroll: true }); // keep Delete / Esc on the diagram
   });
   document.querySelectorAll(".edit-bar button").forEach((b) => { b.onclick = () => editAction(b.dataset.act); });
   $("src").addEventListener("input", () => select("", ""));
