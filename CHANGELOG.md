@@ -4,6 +4,11 @@
 
 Formats (`.ldt`, JSON, `.ldtest`, MCP tools) may change while the version is 0.x; changes are listed here. See [docs/decisions.en.md](docs/decisions.en.md).
 
+## 0.4.0 (2026-11-26)
+
+- Edit commands take an optional `key`; later ops in the same call can target `$key` / `$key.2`, and the result returns the real IDs under `keys` (idea from a Reddit comment)
+- `check` warns `W_SET_RST_SAME_EDGE` when a SET and an RST of one device fire on the same edge and the later one reads the device, so they cancel out within a scan (the usual broken push-on/push-off toggle)
+
 ## 0.3.0 (2026-11-25)
 
 - Browser version: CAD-style workbench (tabbed ribbon, structure tree of rungs and devices, gridded viewport with zoom, flat panels) and new detailed icons
@@ -49,6 +54,11 @@ Formats (`.ldt`, JSON, `.ldtest`, MCP tools) may change while the version is 0.x
 ## 日本語
 
 0.x の間は形式（`.ldt`・JSON・`.ldtest`・MCPツール）を変えることがあり、変えたらここに書きます。[docs/decisions.md](docs/decisions.md) を参照してください。
+
+### 0.4.0（2026-11-26）
+
+- 編集コマンドに `key` を付けられるようにした。同じ呼び出しの後ろの操作から `$key`・`$key.2` で指せて、結果の `keys` で本当のIDを返す（Reddit のコメントからの案）
+- `check` に `W_SET_RST_SAME_EDGE` を追加。同じデバイスの SET と RST が同じ立上り（立下り）で動き、後ろの方の条件がそのデバイスを見ていると、同じスキャンの中で打ち消し合う（押すたびに ON/OFF する回路でよくある誤り）
 
 ### 0.3.0（2026-11-25）
 

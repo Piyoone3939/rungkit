@@ -38,7 +38,9 @@ read_program shows every element with its ID (X0@e3, OUT(Y0)@e4) and every
 rung with "// r1". Edit commands address those IDs. An edit_program call is
 atomic and is one undo step; it is refused if a rung would become an
 invalid ladder. Check errors (e.g. writing an input) are reported, not
-refused, so fix them with further edits.
+refused, so fix them with further edits. Give an op key: "name" to refer
+to what it creates later in the same call as $name (or $name.2 for its 2nd
+new element); the result's keys map each name to the real IDs.
 
 Profiles: melsec-iqr (Mitsubishi iQ-R: X/Y/B/W hexadecimal, D0.3 bit of word,
 K/H constants, T counts 100 ms); there, set_symbol takes only a device name and a
@@ -69,7 +71,7 @@ func New(ws *workspace.Workspace, version string) *mcp.Server {
 	mcp.AddTool(s, &mcp.Tool{Name: "new_program", Description: "Start an empty program for a profile (melsec-iqr or iec)."}, h.newProgram)
 	mcp.AddTool(s, &mcp.Tool{Name: "save_program", Description: "Save the program as .ldt, .json or PLCopen XML (.xml). Without path, saves to the file it was opened from."}, h.save)
 	mcp.AddTool(s, &mcp.Tool{Name: "read_program", Description: "Show the whole program as ladder text with rung IDs (// r1) and element IDs (X0@e3), plus the number of errors and warnings."}, h.read)
-	mcp.AddTool(s, &mcp.Tool{Name: "check_program", Description: "Validate the program. Returns diagnostics with codes (E_READ_ONLY, W_DOUBLE_COIL, ...), rung and element IDs."}, h.check)
+	mcp.AddTool(s, &mcp.Tool{Name: "check_program", Description: "Validate the program. Returns diagnostics with codes (E_READ_ONLY, W_DOUBLE_COIL, W_SET_RST_SAME_EDGE, ...), rung and element IDs."}, h.check)
 	mcp.AddTool(s, &mcp.Tool{Name: "edit_program", Description: "Apply edit commands atomically (all or nothing, one undo step). Commands:\n" + editing.Ops + "\nReturns the changed rungs with IDs, new element IDs and diagnostics."}, h.edit)
 	mcp.AddTool(s, &mcp.Tool{Name: "undo", Description: "Revert the last edit_program call."}, h.undo)
 	mcp.AddTool(s, &mcp.Tool{Name: "redo", Description: "Re-apply the last undone edit."}, h.redo)

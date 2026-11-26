@@ -67,6 +67,7 @@ func Program(p *ladder.Program) []Diagnostic {
 			c.elem(e)
 		}
 	}
+	c.setResetSameEdge(p)
 	return c.ds
 }
 

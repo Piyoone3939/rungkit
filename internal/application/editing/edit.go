@@ -6,6 +6,7 @@ package editing
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/Piyoone3939/rungkit/internal/domain/check"
@@ -38,6 +39,7 @@ type Op struct {
 	Name     string  `json:"name,omitempty" jsonschema:"symbol name"`
 	Type     string  `json:"type,omitempty" jsonschema:"symbol type (iec profile), e.g. BOOL, INT, TON"`
 	Address  string  `json:"address,omitempty" jsonschema:"symbol address (iec profile), e.g. %IX0.0"`
+	Key      string  `json:"key,omitempty" jsonschema:"your own name for what this op creates (add_rung, replace_rung, insert_series, insert_parallel, replace_element); later ops in the same call can use $name as rung, after, target or to ($name.2 = its 2nd new element), and the result maps it to the real IDs under keys"`
 }
 
 // Ops documents the commands and the fields each one uses.
@@ -54,7 +56,11 @@ replace_element(target, text)                 replace one element with text
 delete_element(target)
 set_operand(target, operand)                  change the device of a contact, coil, timer or counter
 set_symbol(name, type?, address?, comment?)   add or replace a symbol / device comment
-delete_symbol(name)`
+delete_symbol(name)
+
+key: ops that create rungs or elements may carry key: "name". Later ops in the
+same call refer to them as "$name" (the rung, or its first new element) or
+"$name.2" (the 2nd new element). The result's keys give the real IDs.`
 
 // RungView is a rung after an edit, with element IDs in its text.
 type RungView struct {
@@ -68,7 +74,15 @@ type Result struct {
 	Rungs        []RungView         `json:"rungs,omitempty"`
 	DeletedRungs []string           `json:"deleted_rungs,omitempty"`
 	NewElements  []string           `json:"new_elements,omitempty"`
+	Keys         map[string]*KeyRef `json:"keys,omitempty"`
 	Diagnostics  []check.Diagnostic `json:"diagnostics"`
+}
+
+// KeyRef is what an op with a key created: its rung and its new elements in
+// document order.
+type KeyRef struct {
+	Rung     string   `json:"rung,omitempty"`
+	Elements []string `json:"elements,omitempty"`
 }
 
 // Session holds a program with its undo history.
@@ -141,15 +155,28 @@ func (s *Session) Apply(ops []Op) (*Result, error) {
 			before[e.ElemID()] = true
 		}
 	}
-	a := &applier{p: work, notation: s.notation, touched: map[string]bool{}}
+	a := &applier{p: work, notation: s.notation, touched: map[string]bool{}, keys: map[string]*KeyRef{}}
 	for i, op := range ops {
+		fail := func(err error) (*Result, error) { return nil, fmt.Errorf("ops[%d] %s: %w", i, op.Op, err) }
+		op, err := a.resolveRefs(op)
+		if err != nil {
+			return fail(err)
+		}
+		if err := a.checkKey(op); err != nil {
+			return fail(err)
+		}
+		had := elementIDs(work)
+		a.made = ""
 		if err := a.apply(op); err != nil {
-			return nil, fmt.Errorf("ops[%d] %s: %w", i, op.Op, err)
+			return fail(err)
 		}
 		work.Normalize()
 		work.AssignIDs()
+		if op.Key != "" {
+			a.keys[op.Key] = a.created(had)
+		}
 	}
-	res := &Result{DeletedRungs: a.deleted}
+	res := &Result{DeletedRungs: a.deleted, Keys: a.finalKeys()}
 	for _, id := range a.order {
 		r, _ := work.Rung(id)
 		if r == nil {
@@ -188,6 +215,115 @@ type applier struct {
 	touched  map[string]bool
 	order    []string
 	deleted  []string
+	keys     map[string]*KeyRef
+	made     string // rung created or replaced by the current op
+}
+
+// keyOps are the ops that create something a key can name.
+var keyOps = map[string]bool{"add_rung": true, "replace_rung": true, "insert_series": true, "insert_parallel": true, "replace_element": true}
+
+func (a *applier) checkKey(op Op) error {
+	if op.Key == "" {
+		return nil
+	}
+	if !keyOps[op.Op] {
+		return i18n.Errorf("key は add_rung・replace_rung・insert_series・insert_parallel・replace_element にだけ付けられます")
+	}
+	if !ladder.ValidLabel(op.Key) {
+		return i18n.Errorf("key %q は英数字と _ だけで書きます", op.Key)
+	}
+	if _, dup := a.keys[op.Key]; dup {
+		return i18n.Errorf("key %q はこの呼び出しの中ですでに使っています", op.Key)
+	}
+	return nil
+}
+
+func elementIDs(p *ladder.Program) map[string]bool {
+	ids := map[string]bool{}
+	for _, r := range p.Rungs {
+		for _, e := range ladder.Elements(r.Body) {
+			ids[e.ElemID()] = true
+		}
+	}
+	return ids
+}
+
+// created lists what the op just applied added: the elements not in had.
+func (a *applier) created(had map[string]bool) *KeyRef {
+	k := &KeyRef{Rung: a.made}
+	for _, r := range a.p.Rungs {
+		for _, e := range ladder.Elements(r.Body) {
+			if !had[e.ElemID()] {
+				k.Elements = append(k.Elements, e.ElemID())
+				if k.Rung == "" {
+					k.Rung = r.ID
+				}
+			}
+		}
+	}
+	return k
+}
+
+// finalKeys drops what later ops in the call removed again.
+func (a *applier) finalKeys() map[string]*KeyRef {
+	if len(a.keys) == 0 {
+		return nil
+	}
+	ids := elementIDs(a.p)
+	out := map[string]*KeyRef{}
+	for name, k := range a.keys {
+		f := &KeyRef{}
+		if r, _ := a.p.Rung(k.Rung); r != nil {
+			f.Rung = k.Rung
+		}
+		for _, e := range k.Elements {
+			if ids[e] {
+				f.Elements = append(f.Elements, e)
+			}
+		}
+		out[name] = f
+	}
+	return out
+}
+
+// resolveRefs replaces "$key" and "$key.N" in the ID fields of op.
+func (a *applier) resolveRefs(op Op) (Op, error) {
+	var err error
+	ref := func(v string, rung bool) string {
+		if err != nil || !strings.HasPrefix(v, "$") {
+			return v
+		}
+		name, nth := v[1:], 1
+		if i := strings.LastIndexByte(name, '.'); i >= 0 {
+			n, e := strconv.Atoi(name[i+1:])
+			if e != nil || n < 1 {
+				err = i18n.Errorf("%s: $key.N の N は1以上の数です", v)
+				return v
+			}
+			name, nth = name[:i], n
+		}
+		k := a.keys[name]
+		if k == nil {
+			err = i18n.Errorf("%s: key %q はこの呼び出しの前の操作にありません", v, name)
+			return v
+		}
+		if rung {
+			if k.Rung == "" {
+				err = i18n.Errorf("%s: このキーにはラングがありません", v)
+			}
+			return k.Rung
+		}
+		if nth > len(k.Elements) {
+			err = i18n.Errorf("%s: このキーで増えた要素は %d 個です", v, len(k.Elements))
+			return v
+		}
+		return k.Elements[nth-1]
+	}
+	op.Rung = ref(op.Rung, true)
+	op.After = ref(op.After, true)
+	op.Target = ref(op.Target, false)
+	op.To = ref(op.To, false)
+	return op, err
 }
 
 func (a *applier) touch(id string) {
@@ -268,6 +404,7 @@ func (a *applier) apply(op Op) error {
 		}
 		a.p.Rungs = append(a.p.Rungs[:at], append([]*ladder.Rung{r}, a.p.Rungs[at:]...)...)
 		a.touch(r.ID)
+		a.made = r.ID
 	case "replace_rung":
 		r, _, err := a.rung(op.Rung)
 		if err != nil {
@@ -279,6 +416,7 @@ func (a *applier) apply(op Op) error {
 		}
 		r.Body = body
 		a.touch(r.ID)
+		a.made = r.ID
 	case "delete_rung":
 		r, i, err := a.rung(op.Rung)
 		if err != nil {

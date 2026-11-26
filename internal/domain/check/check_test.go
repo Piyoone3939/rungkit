@@ -142,3 +142,26 @@ func TestFX5OctalXY(t *testing.T) {
 		}
 	}
 }
+
+func TestSetResetSameEdge(t *testing.T) {
+	cases := []struct{ src, want string }{
+		// the broken toggle: the RST rung sees the M0 the SET rung just wrote
+		{"rung { rise(X0) & !M0 -> SET(M0) }\nrung { rise(X0) & M0 -> RST(M0) }", "W_SET_RST_SAME_EDGE"},
+		{"rung { rise(X0) & M0 -> RST(M0) }\nrung { rise(X0) & !M0 -> SET(M0) }", "W_SET_RST_SAME_EDGE"},
+		{"rung { fall(X0) & !M0 -> SET(M0) }\nrung { fall(X0) & M0 -> RST(M0) }", "W_SET_RST_SAME_EDGE"},
+		// output branches in one rung
+		{"rung { rise(X0) -> { !M0 -> SET(M0)  M0 -> RST(M0) } }", "W_SET_RST_SAME_EDGE"},
+		// exclusive by another contact, not by the device: fine
+		{"rung { rise(X0) & X1 -> SET(M0) }\nrung { rise(X0) & !X1 -> RST(M0) }", ""},
+		// different edges or an edge only on one OR branch: fine
+		{"rung { rise(X0) & !M0 -> SET(M0) }\nrung { rise(X1) & M0 -> RST(M0) }", ""},
+		{"rung { (rise(X0) | X2) & !M0 -> SET(M0) }\nrung { rise(X0) & M0 -> RST(M0) }", ""},
+		// the right way: one rung with OUT
+		{"rung { rise(X0) -> OUT(M1) }\nrung { (M1 & !M0 | !M1 & M0) -> OUT(M0) }", ""},
+	}
+	for _, c := range cases {
+		if got := codes(t, "profile melsec-iqr\n"+c.src); got != c.want {
+			t.Errorf("%s\n got %q want %q", c.src, got, c.want)
+		}
+	}
+}

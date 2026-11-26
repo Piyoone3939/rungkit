@@ -47,6 +47,7 @@ shared: domain/i18n (message translation, used by every layer)
 - Intermediate states may be invalid; the shape is checked at the end, so several operations can restructure a rung
 - `check` errors such as device mistakes are returned, not refused, so an agent can fix them next
 - One applied list is one undo step. IDs handed out are never reused, even after undo
+- Ops that create something (add_rung, replace_rung, insert_series, insert_parallel, replace_element) take an optional `key`. Later ops in the same call refer to it as `$key` (the rung, or the first new element) or `$key.2` (the second new element), so an agent can keep editing without re-reading. The result maps each key to the real IDs under `keys`. Keys live only for that call
 - `insert_parallel` with a range (target..to) finds the innermost series containing both elements and wraps that range
 - `.ldt` views tag elements with `@e3`; pasting tagged text back is accepted (tags are ignored and new IDs assigned)
 
