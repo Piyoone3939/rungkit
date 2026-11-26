@@ -56,6 +56,7 @@ var english = map[string]string{
 	"比較演算子 %q は使えません":                                 "comparison operator %q is not allowed",
 	"%s は書き込めません（入力または読み出し専用）":                        "%s cannot be written (an input or read-only)",
 	"%s は %s でも OUT しています（ダブルコイル）。後ろの OUT の結果だけが残ります": "%s is also driven by OUT in %s (double coil); only the later OUT takes effect",
+	"%s を SET していますが、プログラムのどこにも RST がありません。一度 ON になると、プログラムでは OFF に戻りません（表示器など外から戻すなら、この警告は無視できます）":  "%s is SET but never RST anywhere in the program; once on, the program never turns it off (ignore this if an HMI or another device resets it)",
 	"%s(%s) は %s(%s) と同じ %s で動き、条件で %s を見ています。同じスキャンで %s の結果を打ち消します（押すたびに切り替えるなら、1つのラングで OUT を使います）": "%s(%s) fires on the same edge as %s(%s), %s, and its condition reads %s, so in the same scan it undoes %s (for push-on/push-off, use one rung with OUT)",
 	"%s ではタイマー %s は使えません（使えるもの: %v）": "%s has no timer %s (available: %v)",
 	"%s はタイマーの設定値に使えません":             "%s cannot be a timer preset",

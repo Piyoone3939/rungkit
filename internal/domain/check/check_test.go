@@ -65,6 +65,7 @@ rung { X0 -> OUT(Y0) }
 rung { X1 -> OUT(Y0) }
 rung { X0 -> SET(M0) }
 rung { X1 -> SET(M0) }
+rung { X2 -> RST(M0) }
 rung { X0 -> TON(T0, K10) }
 rung { X1 -> TON(T0, K20) }
 rung { X0 -> CTU(C0, K10) }
@@ -158,6 +159,23 @@ func TestSetResetSameEdge(t *testing.T) {
 		{"rung { (rise(X0) | X2) & !M0 -> SET(M0) }\nrung { rise(X0) & M0 -> RST(M0) }", ""},
 		// the right way: one rung with OUT
 		{"rung { rise(X0) -> OUT(M1) }\nrung { (M1 & !M0 | !M1 & M0) -> OUT(M0) }", ""},
+	}
+	for _, c := range cases {
+		if got := codes(t, "profile melsec-iqr\n"+c.src); got != c.want {
+			t.Errorf("%s\n got %q want %q", c.src, got, c.want)
+		}
+	}
+}
+
+func TestSetWithoutReset(t *testing.T) {
+	cases := []struct{ src, want string }{
+		{"rung { X0 -> SET(M0) }", "W_SET_WITHOUT_RST"},
+		{"rung { X0 -> SET(M0) }\nrung { X1 -> SET(M0) }", "W_SET_WITHOUT_RST"}, // once per device
+		{"rung { X0 -> SET(M0) }\nrung { X1 -> RST(M0) }", ""},
+		{"rung { X0 -> SET(D0.3) }\nrung { X1 -> RST(D0) }", ""},     // RST of the word
+		{"rung { X0 -> SET(D0.3) }\nrung { X1 -> MOV(K0, D0) }", ""}, // an instruction writes the word
+		{"rung { X0 -> SET(D0.3) }\nrung { X1 -> RST(D1) }", "W_SET_WITHOUT_RST"},
+		{"rung { X0 -> SET(M0) }\nrung { X1 -> RST(M1) }", "W_SET_WITHOUT_RST"},
 	}
 	for _, c := range cases {
 		if got := codes(t, "profile melsec-iqr\n"+c.src); got != c.want {

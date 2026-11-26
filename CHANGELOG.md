@@ -4,6 +4,10 @@
 
 Formats (`.ldt`, JSON, `.ldtest`, MCP tools) may change while the version is 0.x; changes are listed here. See [docs/decisions.en.md](docs/decisions.en.md).
 
+## 0.4.1 (2026-11-26)
+
+- `check` warns `W_SET_WITHOUT_RST` when a device is SET but nothing in the program turns it off (no RST of it or of its word, no instruction writing that word, no OUT/PLS/PLF of it). Ignore it when an HMI resets the device (idea from a comment on X)
+
 ## 0.4.0 (2026-11-26)
 
 - Edit commands take an optional `key`; later ops in the same call can target `$key` / `$key.2`, and the result returns the real IDs under `keys` (idea from a Reddit comment)
@@ -54,6 +58,10 @@ Formats (`.ldt`, JSON, `.ldtest`, MCP tools) may change while the version is 0.x
 ## 日本語
 
 0.x の間は形式（`.ldt`・JSON・`.ldtest`・MCPツール）を変えることがあり、変えたらここに書きます。[docs/decisions.md](docs/decisions.md) を参照してください。
+
+### 0.4.1（2026-11-26）
+
+- `check` に `W_SET_WITHOUT_RST` を追加。SET したデバイスを、プログラムのどこでも OFF に戻していない（そのデバイスやワードの RST、そのワードに書く命令、OUT・PLS・PLF がない）ときに警告する。表示器などから戻すなら無視してよい（X のコメントからの案）
 
 ### 0.4.0（2026-11-26）
 

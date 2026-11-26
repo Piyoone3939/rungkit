@@ -1,6 +1,11 @@
 package check
 
-import "github.com/Piyoone3939/rungkit/internal/domain/ladder"
+import (
+	"strings"
+
+	"github.com/Piyoone3939/rungkit/internal/domain/ladder"
+	"github.com/Piyoone3939/rungkit/internal/domain/profile"
+)
 
 // guarded is a SET or RST coil with the contacts in front of it.
 type guarded struct {
@@ -95,4 +100,56 @@ func edgeText(e *ladder.Contact) string {
 		return "fall(" + e.Operand + ")"
 	}
 	return "rise(" + e.Operand + ")"
+}
+
+// setWithoutReset warns about a device that is SET somewhere but never
+// turned off by the program: no RST of it (or of the word holding the bit),
+// no instruction writing that word, and no OUT, PLS or PLF of it.
+func (c *checker) setWithoutReset(p *ladder.Program) {
+	type first struct{ rung, elem string }
+	sets := map[string]first{}
+	var order []string
+	cleared := map[string]bool{}
+	for _, r := range p.Rungs {
+		if ladder.CheckRung(r.Body) != nil {
+			continue
+		}
+		for _, e := range ladder.Elements(r.Body) {
+			switch v := e.(type) {
+			case *ladder.Coil:
+				if v.Mode == ladder.Set {
+					if _, ok := sets[v.Operand]; !ok {
+						sets[v.Operand] = first{r.ID, v.ElemID()}
+						order = append(order, v.Operand)
+					}
+				} else {
+					cleared[v.Operand] = true
+				}
+			case *ladder.Instr:
+				if spec, ok := c.prof.Instr(v.Name); ok && len(spec.Args) == len(v.Args) {
+					for i, a := range v.Args {
+						if spec.Args[i] == profile.Dst {
+							cleared[a] = true
+						}
+					}
+				}
+			}
+		}
+	}
+	for _, op := range order {
+		if cleared[op] || cleared[wordOf(op)] {
+			continue
+		}
+		f := sets[op]
+		c.add(Warning, "W_SET_WITHOUT_RST", f.rung, f.elem,
+			"%s を SET していますが、プログラムのどこにも RST がありません。一度 ON になると、プログラムでは OFF に戻りません（表示器など外から戻すなら、この警告は無視できます）", op)
+	}
+}
+
+// wordOf returns the word of a bit-of-word operand such as D0.3, or "".
+func wordOf(op string) string {
+	if i := strings.LastIndexByte(op, '.'); i > 0 {
+		return op[:i]
+	}
+	return ""
 }
